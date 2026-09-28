@@ -1,0 +1,276 @@
+package com.example.data.remote.clerk
+
+import android.util.Base64
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+sealed class ClerkAuthResult {
+    data class Success(val user: ClerkUser, val sessionToken: String?) : ClerkAuthResult()
+    data class NeedsVerification(val signUpId: String, val email: String, val clientToken: String) : ClerkAuthResult()
+    data class Error(val message: String) : ClerkAuthResult()
+}
+
+class ClerkApiClient(
+    rawKey: String
+) {
+    val publishableKey: String = if (rawKey.isBlank() || rawKey.contains("placeholder", ignoreCase = true)) {
+        "pk_test_aGVyb2ljLWdyb3VzZS0xODA3LmNsZXJrLmFjY291bnRzLmRldiQ"
+    } else {
+        rawKey.trim()
+    }
+
+    val frontendApiHost: String = extractFrontendApi(publishableKey)
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val request = original.newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile; rv:120.0) Noosh/1.0")
+                .header("Origin", "https://$frontendApiHost")
+                .build()
+            chain.proceed(request)
+        }
+        .build()
+
+    val isConfigured: Boolean
+        get() = publishableKey.isNotBlank() && frontendApiHost.isNotBlank()
+
+    /**
+     * Native sign-up request to Clerk Frontend API:
+     * POST /v1/client/sign_ups?_is_native=1
+     */
+    suspend fun signUpWithEmail(
+        email: String,
+        firstName: String,
+        password: String? = null
+    ): ClerkAuthResult = withContext(Dispatchers.IO) {
+        if (!isConfigured) {
+            return@withContext ClerkAuthResult.Error("تنظیمات احراز هویت سرور در دسترس نیست.")
+        }
+
+        try {
+            val cleanEmail = email.trim()
+            val emailPrefix = cleanEmail.substringBefore("@").replace(Regex("[^a-zA-Z0-9_]"), "")
+            val username = "u_${emailPrefix}_${System.currentTimeMillis() % 100000}"
+            val pwd = if (password.isNullOrBlank()) {
+                "Noosh#App_${cleanEmail.hashCode().toUInt()}!X${System.currentTimeMillis() % 1000}"
+            } else {
+                password.trim()
+            }
+
+            val formBuilder = FormBody.Builder()
+                .add("email_address", cleanEmail)
+                .add("username", username)
+                .add("password", pwd)
+                .add("first_name", firstName.trim())
+
+            val request = Request.Builder()
+                .url("https://$frontendApiHost/v1/client/sign_ups?_is_native=1")
+                .addHeader("Authorization", "Bearer $publishableKey")
+                .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                .post(formBuilder.build())
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+            val clientAuthToken = response.header("Authorization") ?: ""
+
+            Log.d(TAG, "Clerk SignUp Response: code=${response.code} body=$responseBody")
+
+            if (response.isSuccessful) {
+                val json = JSONObject(responseBody)
+                val responseObj = json.optJSONObject("response") ?: JSONObject()
+                val signUpId = responseObj.optString("id")
+                val createdUserId = responseObj.optString("created_user_id", "")
+                val status = responseObj.optString("status")
+
+                if (createdUserId.isNotBlank()) {
+                    val user = ClerkUser(
+                        id = createdUserId,
+                        firstName = firstName.trim(),
+                        email = cleanEmail,
+                        avatarUrl = null,
+                        isGuest = false
+                    )
+                    ClerkAuthResult.Success(user, clientAuthToken)
+                } else if (signUpId.isNotBlank()) {
+                    prepareVerification(signUpId, clientAuthToken)
+                    val user = ClerkUser(
+                        id = signUpId,
+                        firstName = firstName.trim(),
+                        email = cleanEmail,
+                        avatarUrl = null,
+                        isGuest = false
+                    )
+                    ClerkAuthResult.Success(user, clientAuthToken)
+                } else {
+                    ClerkAuthResult.Error("پاسخی از سرور دریافت نشد.")
+                }
+            } else {
+                val json = try { JSONObject(responseBody) } catch (e: Exception) { null }
+                val errors = json?.optJSONArray("errors")
+                val firstError = errors?.optJSONObject(0)
+                val errorCode = firstError?.optString("code") ?: ""
+
+                // If identifier already exists, automatically attempt sign-in
+                if (errorCode == "form_identifier_exists") {
+                    return@withContext signInWithEmail(cleanEmail, pwd, firstName)
+                }
+
+                val errorMsg = when (errorCode) {
+                    "form_password_pwned" -> "این رمز عبور به دلیل نقض امنیتی عمومی ناامن است. لطفاً رمز عبور دیگری انتخاب کنید."
+                    "form_password_length_too_short" -> "رمز عبور باید حداقل ۸ کاراکتر باشد."
+                    "form_param_format_invalid" -> "فرمت ایمیل نامعتبر است."
+                    else -> firstError?.optString("message") ?: "خطا در ثبت‌نام با کد ${response.code}"
+                }
+                Log.w(TAG, "Clerk SignUp Error: $errorMsg (code: $errorCode)")
+                ClerkAuthResult.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in Clerk signUp: ${e.message}", e)
+            val friendlyMsg = if (e is java.net.UnknownHostException || e is java.net.SocketTimeoutException || e is java.io.IOException || e is IllegalArgumentException) {
+                "خطا در برقراری ارتباط با سرور احراز هویت. لطفاً اتصال اینترنت خود را بررسی کنید و دوباره تلاش نمایید."
+            } else {
+                "خطا در اتصال به سرور احراز هویت. لطفاً دوباره تلاش کنید."
+            }
+            ClerkAuthResult.Error(friendlyMsg)
+        }
+    }
+
+    /**
+     * Native sign-in request to Clerk Frontend API:
+     * POST /v1/client/sign_ins?_is_native=1
+     */
+    suspend fun signInWithEmail(
+        email: String,
+        password: String,
+        firstName: String? = null
+    ): ClerkAuthResult = withContext(Dispatchers.IO) {
+        if (!isConfigured) {
+            return@withContext ClerkAuthResult.Error("تنظیمات احراز هویت سرور در دسترس نیست.")
+        }
+
+        try {
+            val cleanEmail = email.trim()
+            val formBuilder = FormBody.Builder()
+                .add("identifier", cleanEmail)
+                .add("password", password.trim())
+
+            val request = Request.Builder()
+                .url("https://$frontendApiHost/v1/client/sign_ins?_is_native=1")
+                .addHeader("Authorization", "Bearer $publishableKey")
+                .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                .post(formBuilder.build())
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+            val clientAuthToken = response.header("Authorization") ?: ""
+
+            Log.d(TAG, "Clerk SignIn Response: code=${response.code} body=$responseBody")
+
+            if (response.isSuccessful) {
+                val json = JSONObject(responseBody)
+                val responseObj = json.optJSONObject("response") ?: JSONObject()
+                val userData = responseObj.optJSONObject("user_data")
+                val resolvedUserId = responseObj.optString("created_user_id").ifBlank {
+                    userData?.optString("id") ?: responseObj.optString("id")
+                }
+                val resolvedName = firstName?.ifBlank { null }
+                    ?: userData?.optString("first_name")
+                    ?: cleanEmail.substringBefore("@")
+
+                val user = ClerkUser(
+                    id = resolvedUserId,
+                    firstName = resolvedName,
+                    email = cleanEmail,
+                    avatarUrl = userData?.optString("image_url"),
+                    isGuest = false
+                )
+                ClerkAuthResult.Success(user, clientAuthToken)
+            } else {
+                val json = try { JSONObject(responseBody) } catch (e: Exception) { null }
+                val errors = json?.optJSONArray("errors")
+                val firstError = errors?.optJSONObject(0)
+                val errorCode = firstError?.optString("code") ?: ""
+
+                val errorMsg = when (errorCode) {
+                    "form_password_incorrect" -> "رمز عبور وارد شده اشتباه است."
+                    "form_identifier_not_found" -> "حسابی با این ایمیل یافت نشد. برای ثبت‌نام مشخصات خود را تکمیل کنید."
+                    "form_password_pwned" -> "این رمز عبور به دلیل نقض امنیتی عمومی ناامن است. لطفاً رمز قوی‌تری انتخاب کنید."
+                    else -> firstError?.optString("message") ?: "خطا در ورود به حساب کاربری (کد ${response.code})"
+                }
+                Log.w(TAG, "Clerk SignIn Error: $errorMsg (code: $errorCode)")
+                ClerkAuthResult.Error(errorMsg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in Clerk signIn: ${e.message}", e)
+            val friendlyMsg = if (e is java.net.UnknownHostException || e is java.net.SocketTimeoutException || e is java.io.IOException || e is IllegalArgumentException) {
+                "خطا در برقراری ارتباط با سرور احراز هویت. لطفاً اتصال اینترنت خود را بررسی کنید و دوباره تلاش نمایید."
+            } else {
+                "خطا در ورود به حساب کاربری. لطفاً دوباره تلاش کنید."
+            }
+            ClerkAuthResult.Error(friendlyMsg)
+        }
+    }
+
+    private fun prepareVerification(signUpId: String, clientAuthToken: String) {
+        try {
+            val body = FormBody.Builder()
+                .add("strategy", "email_code")
+                .build()
+
+            val request = Request.Builder()
+                .url("https://$frontendApiHost/v1/client/sign_ups/$signUpId/prepare_verification?_is_native=1")
+                .addHeader("Authorization", clientAuthToken)
+                .post(body)
+                .build()
+
+            val response = client.newCall(request).execute()
+            Log.d(TAG, "prepareVerification: code=${response.code}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to prepare verification: ${e.message}")
+        }
+    }
+
+    companion object {
+        private const val TAG = "ClerkApiClient"
+
+        private const val DEFAULT_FRONTEND_API = "heroic-grouse-1807.clerk.accounts.dev"
+
+        fun extractFrontendApi(publishableKey: String): String {
+            return try {
+                val key = publishableKey.trim()
+                if (key.isBlank() || key.contains("placeholder", ignoreCase = true)) return DEFAULT_FRONTEND_API
+                if (!key.startsWith("pk_")) return DEFAULT_FRONTEND_API
+                val base64Part = key
+                    .removePrefix("pk_test_")
+                    .removePrefix("pk_live_")
+                    .trim()
+                    .removeSuffix("$")
+                if (base64Part.isBlank()) return DEFAULT_FRONTEND_API
+                val padded = base64Part + "=".repeat((-base64Part.length).mod(4))
+                val decodedBytes = Base64.decode(padded, Base64.DEFAULT)
+                val decoded = String(decodedBytes, Charsets.UTF_8).trim().removeSuffix("$")
+                val isValid = decoded.length in 4..128 &&
+                        decoded.contains(".") &&
+                        decoded.all { it.isLetterOrDigit() || it == '.' || it == '-' } &&
+                        !decoded.startsWith(".") &&
+                        !decoded.endsWith(".") &&
+                        !decoded.startsWith("-") &&
+                        !decoded.endsWith("-")
+                if (isValid) decoded else DEFAULT_FRONTEND_API
+            } catch (e: Exception) {
+                DEFAULT_FRONTEND_API
+            }
+        }
+    }
+}
