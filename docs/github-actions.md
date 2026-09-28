@@ -39,12 +39,23 @@
 | :--- | :---: | :--- | :--- |
 | `GOOGLE_SERVICES_JSON` | اختیاری / توصیه شده | محتوای فایل `google-services.json` | دانلود از کنسول Firebase در بخش تنظیمات پروژه برای پکیج `com.aistudio.noosh.water` |
 
-### دسته ج: پایگاه داده ابری و همراه سلامت (Supabase Backend)
-| نام Secret | الزامی؟ | توضیحات | نحوه تولید / مقدار |
-| :--- | :---: | :--- | :--- |
-| `SUPABASE_URL` | اختیاری | آدرس پروژه Supabase شما | کنسول Supabase > Project Settings > API > Project URL |
-| `SUPABASE_ANON_KEY` | اختیاری | کلید عمومی (anon / public) سوپابیس | کنسول Supabase > Project Settings > API > Project API Keys |
-| `SUPABASE_SERVICE_ROLE_KEY` | فقط برای اجوکیت Backend/Functions | کلید مدیریتی سطح بالای سوپابیس | کنسول Supabase > Project Settings > API > service_role |
+### دسته ج: پایگاه داده ابری و احراز هویت (Clerk & Supabase)
+
+#### متغیرهای محرمانه (Repository Secrets):
+در مسیر **Settings > Secrets and variables > Actions > Secrets**:
+| نام Secret | الزامی؟ | توضیحات |
+| :--- | :---: | :--- |
+| `CLERK_PUBLISHABLE_KEY` | **بله** | کلید عمومی Clerk برای ورود و ثبت‌نام کاربران (`pk_test_...` یا `pk_live_...`) |
+| `SUPABASE_ANON_KEY` | **بله** | کلید عمومی (anon / public) پروژه سوپابیس برای همگام‌سازی ابری و دیتابیس |
+| `SUPABASE_SERVICE_ROLE_KEY` | اختیاری | کلید مدیریتی سطح بالای سوپابیس (فقط در صورت نیاز به دسترسی‌های ویژه) |
+
+#### متغیرهای عمومی مخزن (Repository Variables):
+در مسیر **Settings > Secrets and variables > Actions > Variables**:
+| نام Variable | الزامی؟ | توضیحات |
+| :--- | :---: | :--- |
+| `SUPABASE_URL` | **بله** | آدرس اختصاصی پروژه سوپابیس شما (مانند `https://xyz.supabase.co`) |
+
+> **نکته**: پایپ‌لاین‌های `release-apk.yml` و `ci.yml` طوری طراحی شده‌اند که مقدار `SUPABASE_URL` را چه در بخش **Variables** و چه در بخش **Secrets** تعریف کرده باشید، به صورت خودکار شناسایی کرده و مستقیماً به محیط بیلد Gradle و فایل `.env` تزریق می‌نمایند.
 
 ---
 

@@ -15,6 +15,11 @@ jobs:
   build-release:
     name: Build Signed Release APK
     runs-on: ubuntu-latest
+    env:
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - name: Checkout repository
@@ -31,17 +36,17 @@ jobs:
 
       - name: Setup Environment Files
         env:
-          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           if [ -f .env.example ]; then
             cp .env.example .env
           else
             touch .env
           fi
-          # Inject secrets from repository secrets or fallback to configured keys
+
           CLERK_VAL="${CLERK_PUBLISHABLE_KEY:-pk_test_aGVyb2ljLWdyb3VzZS0xODA3LmNsZXJrLmFjY291bnRzLmRldiQ}"
           SUPA_URL="${SUPABASE_URL:-https://hpdbgwpfhiwcipixdfer.supabase.co}"
           SUPA_ANON="${SUPABASE_ANON_KEY:-sb_publishable_EJyS9Tmjpb8yemN5IPUotA_Lo5ndCZD}"
@@ -58,6 +63,12 @@ jobs:
 
           sed -i '/^SUPABASE_SERVICE_ROLE_KEY=/d' .env || true
           echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SERVICE" >> .env
+
+          # Export into GITHUB_ENV so all subsequent steps receive them
+          echo "CLERK_PUBLISHABLE_KEY=$CLERK_VAL" >> $GITHUB_ENV
+          echo "SUPABASE_URL=$SUPA_URL" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=$SUPA_ANON" >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SERVICE" >> $GITHUB_ENV
 
       - name: Setup Google Services JSON
         env:
@@ -95,6 +106,10 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || secrets.STORE_PASSWORD || 'noosh123456' }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS || 'upload' }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD || 'noosh123456' }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Build Signed Release Bundle (AAB)
@@ -103,6 +118,10 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || secrets.STORE_PASSWORD || 'noosh123456' }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS || 'upload' }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD || 'noosh123456' }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
         run: ./gradlew bundleRelease --no-daemon
 
       - name: Upload Release APK Artifact
