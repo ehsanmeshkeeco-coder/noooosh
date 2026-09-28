@@ -67,6 +67,7 @@ android {
   }
 
   val clerkKey = resolveConfig("CLERK_PUBLISHABLE_KEY", "pk_test_aGVyb2ljLWdyb3VzZS0xODA3LmNsZXJrLmFjY291bnRzLmRldiQ")
+  val clerkSecretKey = resolveConfig("CLERK_SECRET_KEY", "")
   val supabaseUrl = resolveConfig("SUPABASE_URL", "https://hpdbgwpfhiwcipixdfer.supabase.co")
   val supabaseAnonKey = resolveConfig("SUPABASE_ANON_KEY", "sb_publishable_EJyS9Tmjpb8yemN5IPUotA_Lo5ndCZD")
   val supabaseServiceKey = resolveConfig("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -80,10 +81,11 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    buildConfigField("String", "CLERK_PUBLISHABLE_KEY", "\"" + clerkKey + "\"")
-    buildConfigField("String", "SUPABASE_URL", "\"" + supabaseUrl + "\"")
-    buildConfigField("String", "SUPABASE_ANON_KEY", "\"" + supabaseAnonKey + "\"")
-    buildConfigField("String", "SUPABASE_SERVICE_ROLE_KEY", "\"" + supabaseServiceKey + "\"")
+    buildConfigField("String", "CLERK_PUBLISHABLE_KEY", "\"$clerkKey\"")
+    buildConfigField("String", "CLERK_SECRET_KEY", "\"$clerkSecretKey\"")
+    buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+    buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+    buildConfigField("String", "SUPABASE_SERVICE_ROLE_KEY", "\"$supabaseServiceKey\"")
   }
 
   signingConfigs {
@@ -129,7 +131,12 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      isReturnDefaultValues = true
+    }
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
@@ -142,6 +149,11 @@ secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
   ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
+  ignoreList.add("CLERK_PUBLISHABLE_KEY")
+  ignoreList.add("CLERK_SECRET_KEY")
+  ignoreList.add("SUPABASE_URL")
+  ignoreList.add("SUPABASE_ANON_KEY")
+  ignoreList.add("SUPABASE_SERVICE_ROLE_KEY")
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }

@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || vars.CLERK_SECRET_KEY }}
       SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
@@ -37,6 +38,7 @@ jobs:
       - name: Setup Environment Files
         env:
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || vars.CLERK_SECRET_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
@@ -48,12 +50,18 @@ jobs:
           fi
 
           CLERK_VAL="${CLERK_PUBLISHABLE_KEY:-pk_test_aGVyb2ljLWdyb3VzZS0xODA3LmNsZXJrLmFjY291bnRzLmRldiQ}"
+          CLERK_SEC="${CLERK_SECRET_KEY:-}"
           SUPA_URL="${SUPABASE_URL:-https://hpdbgwpfhiwcipixdfer.supabase.co}"
           SUPA_ANON="${SUPABASE_ANON_KEY:-sb_publishable_EJyS9Tmjpb8yemN5IPUotA_Lo5ndCZD}"
           SUPA_SERVICE="${SUPABASE_SERVICE_ROLE_KEY:-}"
 
           sed -i '/^CLERK_PUBLISHABLE_KEY=/d' .env || true
           echo "CLERK_PUBLISHABLE_KEY=$CLERK_VAL" >> .env
+
+          sed -i '/^CLERK_SECRET_KEY=/d' .env || true
+          if [ -n "$CLERK_SEC" ]; then
+            echo "CLERK_SECRET_KEY=$CLERK_SEC" >> .env
+          fi
 
           sed -i '/^SUPABASE_URL=/d' .env || true
           echo "SUPABASE_URL=$SUPA_URL" >> .env
@@ -62,10 +70,13 @@ jobs:
           echo "SUPABASE_ANON_KEY=$SUPA_ANON" >> .env
 
           sed -i '/^SUPABASE_SERVICE_ROLE_KEY=/d' .env || true
-          echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SERVICE" >> .env
+          if [ -n "$SUPA_SERVICE" ]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SERVICE" >> .env
+          fi
 
           # Export into GITHUB_ENV so all subsequent steps receive them
           echo "CLERK_PUBLISHABLE_KEY=$CLERK_VAL" >> $GITHUB_ENV
+          echo "CLERK_SECRET_KEY=$CLERK_SEC" >> $GITHUB_ENV
           echo "SUPABASE_URL=$SUPA_URL" >> $GITHUB_ENV
           echo "SUPABASE_ANON_KEY=$SUPA_ANON" >> $GITHUB_ENV
           echo "SUPABASE_SERVICE_ROLE_KEY=$SUPA_SERVICE" >> $GITHUB_ENV
@@ -107,6 +118,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS || 'upload' }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD || 'noosh123456' }}
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || vars.CLERK_SECRET_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
@@ -119,6 +131,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS || 'upload' }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD || 'noosh123456' }}
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY || vars.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || vars.CLERK_SECRET_KEY }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || vars.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}
