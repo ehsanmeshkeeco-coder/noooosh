@@ -33,8 +33,7 @@ class ClerkApiClient(
         .addInterceptor { chain ->
             val original = chain.request()
             val request = original.newBuilder()
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile; rv:120.0) Noosh/1.0")
-                .header("Origin", "https://$frontendApiHost")
+                .header("User-Agent", "Noosh-Android/1.0")
                 .build()
             chain.proceed(request)
         }
@@ -228,9 +227,14 @@ class ClerkApiClient(
                 .add("strategy", "email_code")
                 .build()
 
-            val request = Request.Builder()
+            val requestBuilder = Request.Builder()
                 .url("https://$frontendApiHost/v1/client/sign_ups/$signUpId/prepare_verification?_is_native=1")
-                .addHeader("Authorization", clientAuthToken)
+            if (clientAuthToken.isNotBlank()) {
+                requestBuilder.addHeader("Authorization", clientAuthToken)
+            } else {
+                requestBuilder.addHeader("Authorization", "Bearer $publishableKey")
+            }
+            val request = requestBuilder
                 .post(body)
                 .build()
 

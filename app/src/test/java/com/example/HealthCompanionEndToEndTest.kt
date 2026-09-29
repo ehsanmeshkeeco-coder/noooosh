@@ -178,13 +178,13 @@ class HealthCompanionEndToEndTest {
         assertEquals(1, missedEvent.missedReminderCount)
 
         // 6. Inactivity Detector Evaluates
-        // Simulate no water intake for 150 minutes during daytime (wake up 08:00 to 23:00)
+        // Simulate no water intake for 150 minutes during active hours
         val pastIntakeTime = System.currentTimeMillis() - (150 * 60 * 1000L)
         val inactivityResult = inactivityDetector.checkInactivity(
             lastWaterIntakeAt = pastIntakeTime,
             thresholdMinutes = 120,
-            wakeUpTime = "08:00",
-            sleepTime = "23:00"
+            wakeUpTime = "00:00",
+            sleepTime = "23:59"
         )
         assertTrue(inactivityResult.isInactive)
         assertTrue(inactivityResult.inactivityMinutes >= 150)
