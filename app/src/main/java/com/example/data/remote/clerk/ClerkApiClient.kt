@@ -124,11 +124,17 @@ class ClerkApiClient(
                     return@withContext signInWithEmail(cleanEmail, pwd, firstName)
                 }
 
+                val rawMsg = firstError?.optString("long_message").takeIf { !it.isNullOrBlank() }
+                    ?: firstError?.optString("message").orEmpty()
+                val minLength = Regex("""\d+""").find(rawMsg)?.value ?: "8"
+
                 val errorMsg = when (errorCode) {
                     "form_password_pwned" -> "این رمز عبور به دلیل نقض امنیتی عمومی ناامن است. لطفاً رمز عبور دیگری انتخاب کنید."
-                    "form_password_length_too_short" -> "رمز عبور باید حداقل ۸ کاراکتر باشد."
-                    "form_param_format_invalid" -> "فرمت ایمیل نامعتبر است."
-                    else -> firstError?.optString("message") ?: "خطا در ثبت‌نام با کد ${response.code}"
+                    "form_password_length_too_short" -> "رمز عبور در تنظیمات سرور باید حداقل $minLength کاراکتر باشد."
+                    "form_password_size_in_bytes_exceeded" -> "طول رمز عبور بیش از حد مجاز است."
+                    "form_param_format_invalid" -> "فرمت اطلاعات وارد شده معتبر نیست."
+                    "form_password_validation_failed" -> "رمز عبور با الزامات امنیتی سرور مطابقت ندارد ($rawMsg)."
+                    else -> rawMsg.ifBlank { "خطا در ثبت‌نام با کد ${response.code}" }
                 }
                 Log.w(TAG, "Clerk SignUp Error: $errorMsg (code: $errorCode)")
                 ClerkAuthResult.Error(errorMsg)
@@ -201,11 +207,16 @@ class ClerkApiClient(
                 val firstError = errors?.optJSONObject(0)
                 val errorCode = firstError?.optString("code") ?: ""
 
+                val rawMsg = firstError?.optString("long_message").takeIf { !it.isNullOrBlank() }
+                    ?: firstError?.optString("message").orEmpty()
+                val minLength = Regex("""\d+""").find(rawMsg)?.value ?: "8"
+
                 val errorMsg = when (errorCode) {
                     "form_password_incorrect" -> "رمز عبور وارد شده اشتباه است."
                     "form_identifier_not_found" -> "حسابی با این ایمیل یافت نشد. برای ثبت‌نام مشخصات خود را تکمیل کنید."
                     "form_password_pwned" -> "این رمز عبور به دلیل نقض امنیتی عمومی ناامن است. لطفاً رمز قوی‌تری انتخاب کنید."
-                    else -> firstError?.optString("message") ?: "خطا در ورود به حساب کاربری (کد ${response.code})"
+                    "form_password_length_too_short" -> "رمز عبور در تنظیمات سرور باید حداقل $minLength کاراکتر باشد."
+                    else -> rawMsg.ifBlank { "خطا در ورود به حساب کاربری (کد ${response.code})" }
                 }
                 Log.w(TAG, "Clerk SignIn Error: $errorMsg (code: $errorCode)")
                 ClerkAuthResult.Error(errorMsg)

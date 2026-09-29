@@ -1,5 +1,6 @@
 package com.example.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -398,6 +399,17 @@ class MainViewModel(
                         )
                         userRepository.updateProfile(updated)
                         fcmTokenManager?.onUserLogin(updated.id)
+                        if (updated.reminderEnabled) {
+                            reminderScheduler.scheduleNextPendingReminder()
+                            try {
+                                com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
+                                    com.example.NooshApplication.instance,
+                                    updated.reminderIntervalMinutes.coerceAtLeast(15)
+                                )
+                            } catch (e: Throwable) {
+                                Log.w("MainViewModel", "Periodic reminder scheduling skipped: ${e.message}")
+                            }
+                        }
                         onResult?.invoke(true, "خوش آمدید! احراز هویت با موفقیت انجام شد ✓")
                     }
                     is ClerkAuthResult.NeedsVerification -> {
@@ -431,6 +443,12 @@ class MainViewModel(
         _onboardingCompletedInSession.value = false
         clerkAuthManager.signOut()
         fcmTokenManager?.onUserLogout()
+        reminderScheduler.cancelAllAlarms()
+        try {
+            com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(com.example.NooshApplication.instance)
+        } catch (e: Throwable) {
+            Log.w("MainViewModel", "Error canceling reminders on sign out: ${e.message}")
+        }
     }
 
     fun createCompanionRoom(onCodeGenerated: (String) -> Unit) {

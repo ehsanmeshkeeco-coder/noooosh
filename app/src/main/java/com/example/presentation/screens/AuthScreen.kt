@@ -352,7 +352,15 @@ fun AuthScreen(
                                 passwordInput = it
                                 errorMessage = null
                             },
-                            label = { Text("رمز عبور (حداقل ۸ کاراکتر)") },
+                            label = { Text("رمز عبور") },
+                            placeholder = { Text("حداقل ۸ الی ۱۵ کاراکتر") },
+                            supportingText = {
+                                Text(
+                                    text = "طول رمز عبور حداقل ۸ الی ۱۵ کاراکتر (بسته به تنظیمات کلارک)",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                )
+                            },
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             leadingIcon = {

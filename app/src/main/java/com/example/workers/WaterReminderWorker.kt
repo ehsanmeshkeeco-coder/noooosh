@@ -1,6 +1,7 @@
 package com.example.workers
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.NooshApplication
@@ -29,6 +30,16 @@ class WaterReminderWorker(
 
         if (isStopped) {
             return Result.retry()
+        }
+
+        val isUserLoggedIn = app.clerkAuthManager.isAuthenticated &&
+            app.clerkAuthManager.currentUser != null &&
+            app.clerkAuthManager.currentUser?.isGuest != true
+
+        if (!isUserLoggedIn) {
+            Log.d("WaterReminderWorker", "Water reminder skipped: user is not registered/logged in.")
+            WaterReminderWorkScheduler.cancelAllReminders(context)
+            return Result.success()
         }
 
         try {

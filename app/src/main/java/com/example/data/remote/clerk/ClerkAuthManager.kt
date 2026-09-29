@@ -40,6 +40,15 @@ class ClerkAuthManager(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
+    val isAuthenticated: Boolean
+        get() {
+            val state = _authState.value
+            return state is AuthState.Authenticated && !state.user.isGuest
+        }
+
+    val currentUser: ClerkUser?
+        get() = (_authState.value as? AuthState.Authenticated)?.user
+
     init {
         checkInitialSession()
     }

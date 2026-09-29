@@ -21,10 +21,16 @@ class BootReceiver : BroadcastReceiver() {
             if (app != null) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val profile = app.userRepository.getUserProfile()
-                        if (profile.reminderEnabled) {
-                            app.reminderRepository.scheduleDailyReminders(profile)
-                            app.reminderScheduler.scheduleNextPendingReminder()
+                        val isUserLoggedIn = app.clerkAuthManager.isAuthenticated &&
+                            app.clerkAuthManager.currentUser != null &&
+                            app.clerkAuthManager.currentUser?.isGuest != true
+
+                        if (isUserLoggedIn) {
+                            val profile = app.userRepository.getUserProfile()
+                            if (profile.reminderEnabled) {
+                                app.reminderRepository.scheduleDailyReminders(profile)
+                                app.reminderScheduler.scheduleNextPendingReminder()
+                            }
                         }
                         // Section 75: Phone restart recovery - trigger Sync Worker
                         app.syncManager.triggerImmediateSync()

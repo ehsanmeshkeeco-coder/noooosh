@@ -142,7 +142,31 @@ class ReminderScheduler(
     }
 
     fun cancelAllAlarms() {
-        // Will cancel upcoming alarms
+        try {
+            val intent = Intent(context, ReminderReceiver::class.java).apply {
+                action = ReminderReceiver.ACTION_REMINDER_TRIGGERED
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            pendingIntent?.let { alarmManager.cancel(it) }
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val allReminders = reminderRepository.getTodayReminders()
+                    for (reminder in allReminders) {
+                        cancelAlarm(reminder.id)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error cancelling repository reminders: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error canceling alarms: ${e.message}")
+        }
     }
 
     companion object {

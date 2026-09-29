@@ -178,13 +178,23 @@ class NooshApplication : Application() {
 
         applicationScope.launch(Dispatchers.IO) {
             try {
-                val profile = userRepository.getUserProfile()
-                if (profile.reminderEnabled) {
-                    reminderScheduler.scheduleNextPendingReminder()
-                    com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
-                        this@NooshApplication,
-                        profile.reminderIntervalMinutes.coerceAtLeast(15)
-                    )
+                val isUserLoggedIn = clerkAuthManager.isAuthenticated &&
+                    clerkAuthManager.currentUser != null &&
+                    clerkAuthManager.currentUser?.isGuest != true
+
+                if (isUserLoggedIn) {
+                    val profile = userRepository.getUserProfile()
+                    if (profile.reminderEnabled) {
+                        reminderScheduler.scheduleNextPendingReminder()
+                        com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
+                            this@NooshApplication,
+                            profile.reminderIntervalMinutes.coerceAtLeast(15)
+                        )
+                    }
+                } else {
+                    // Critical: unauthenticated users must NOT receive any notifications
+                    reminderScheduler.cancelAllAlarms()
+                    com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(this@NooshApplication)
                 }
             } catch (e: Throwable) {
                 android.util.Log.w("NooshApplication", "Initial reminders setup skipped: ${e.message}")

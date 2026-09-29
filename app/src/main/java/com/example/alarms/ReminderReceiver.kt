@@ -26,6 +26,17 @@ class ReminderReceiver : BroadcastReceiver() {
             if (app != null) {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
+                        val isUserLoggedIn = app.clerkAuthManager.isAuthenticated &&
+                            app.clerkAuthManager.currentUser != null &&
+                            app.clerkAuthManager.currentUser?.isGuest != true
+
+                        if (!isUserLoggedIn) {
+                            Log.d(TAG, "Reminder suppressed: user is not registered/logged in.")
+                            app.reminderScheduler.cancelAllAlarms()
+                            com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(context)
+                            return@launch
+                        }
+
                         val profile = app.userRepository.getUserProfile()
                         if (!profile.reminderEnabled) {
                             return@launch
