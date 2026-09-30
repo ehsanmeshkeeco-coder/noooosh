@@ -282,20 +282,24 @@ fun ProfileSettingsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        Slider(
-                            value = currentGoal.toFloat(),
-                            onValueChange = {
-                                currentGoal = (it / 250).toInt() * 250
-                                viewModel.updateDailyGoal(currentGoal)
-                            },
-                            valueRange = 1000f..4000f,
-                            steps = 11,
-                            colors = SliderDefaults.colors(
-                                thumbColor = NooshPrimary,
-                                activeTrackColor = NooshPrimary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        // RTL Slider: Fills from Right to Left
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                            Slider(
+                                value = currentGoal.toFloat(),
+                                onValueChange = {
+                                    currentGoal = (it / 250).toInt() * 250
+                                    viewModel.updateDailyGoal(currentGoal)
+                                },
+                                valueRange = 1000f..4000f,
+                                steps = 11,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = NooshPrimary,
+                                    activeTrackColor = NooshPrimary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                ),
+                                modifier = Modifier.fillMaxWidth()
                             )
-                        )
+                        }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -417,7 +421,10 @@ fun ProfileSettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
@@ -433,7 +440,7 @@ fun ProfileSettingsScreen(
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "روز استراحت زنجیره (امان‌نامه)",
                                         fontSize = 14.sp,
@@ -500,69 +507,6 @@ fun ProfileSettingsScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                        }
-                    }
-                }
-            }
-
-            // Cloud Backup Card
-            item {
-                Card(
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFDCFCE7)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CloudDone,
-                                    contentDescription = null,
-                                    tint = SuccessGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "پشتیبان‌گیری ابری خودکار",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "اطلاعات شما با سرور امن همگام است",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.syncNow()
-                                Toast.makeText(context, "اطلاعات با سرور همگام شد ✓", Toast.LENGTH_SHORT).show()
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "همگام‌سازی", fontSize = 11.sp)
                         }
                     }
                 }

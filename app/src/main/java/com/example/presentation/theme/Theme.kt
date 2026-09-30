@@ -3,6 +3,7 @@ package com.example.presentation.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -13,7 +14,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
@@ -74,8 +77,14 @@ fun NooshTheme(
         }
     }
 
-    // Explicitly enforce Right-To-Left direction for Persian
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    // Explicitly enforce Right-To-Left direction for Persian and default Vazirmatn typography
+    CompositionLocalProvider(
+        LocalLayoutDirection provides LayoutDirection.Rtl,
+        LocalTextStyle provides TextStyle(
+            fontFamily = VazirmatnFontFamily,
+            fontSize = 14.sp
+        )
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = AppTypography,

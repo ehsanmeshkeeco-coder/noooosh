@@ -90,13 +90,16 @@ fun RemindersScreen(
     var soundEnabled by remember(profile) { mutableStateOf(profile?.soundEnabled ?: true) }
     var vibrateEnabled by remember(profile) { mutableStateOf(profile?.vibrateEnabled ?: true) }
 
+    var showSleepTimePicker by remember { mutableStateOf(false) }
+    var selectedSleepTime by remember(displaySleep) { mutableStateOf(displaySleep) }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         LazyColumn(
             modifier = modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
                 .testTag("reminders_screen"),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -108,12 +111,6 @@ fun RemindersScreen(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "زمان‌بندی خودکار از زمان بیداری تا خواب بدون مزاحمت هنگام استراحت",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -128,56 +125,12 @@ fun RemindersScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFFEF3C7)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.WbSunny,
-                                        contentDescription = null,
-                                        tint = Color(0xFFD97706),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "برنامه بیداری و خواب شما",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "یادآورها فقط بین این دو ساعت پخش می‌شوند",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Button(
-                                onClick = { viewModel.openMorningWakeUp() },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = NooshSubtleBlue),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = "تغییر ساعت بیداری",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = NooshPrimary
-                                )
-                            }
-                        }
+                        Text(
+                            text = "برنامه بیداری و خواب شما",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
 
                         Spacer(modifier = Modifier.height(14.dp))
 
@@ -185,58 +138,74 @@ fun RemindersScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Wake up Box
+                            // Wake up Box (Clickable to edit)
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(14.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .clickable { viewModel.openMorningWakeUp() }
                                     .padding(12.dp)
                             ) {
                                 Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.WbSunny,
-                                            contentDescription = null,
-                                            tint = Color(0xFFF59E0B),
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("ساعت بیداری امروز", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.WbSunny,
+                                                contentDescription = null,
+                                                tint = Color(0xFFF59E0B),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("ساعت بیداری", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Text("ویرایش ✏️", fontSize = 11.sp, color = NooshPrimary, fontWeight = FontWeight.Bold)
                                     }
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = "ساعت ${DateTimeUtils.toPersianDigits(displayWakeUp)}",
-                                        fontSize = 15.sp,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
 
-                            // Sleep Box
+                            // Sleep Box (Clickable to edit)
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(14.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .clickable { showSleepTimePicker = true }
                                     .padding(12.dp)
                             ) {
                                 Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Bedtime,
-                                            contentDescription = null,
-                                            tint = Color(0xFF6366F1),
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("ساعت خواب شب", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Bedtime,
+                                                contentDescription = null,
+                                                tint = Color(0xFF6366F1),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("ساعت خواب", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Text("ویرایش ✏️", fontSize = 11.sp, color = NooshPrimary, fontWeight = FontWeight.Bold)
                                     }
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = "ساعت ${DateTimeUtils.toPersianDigits(displaySleep)}",
-                                        fontSize = 15.sp,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
@@ -430,18 +399,6 @@ fun RemindersScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.triggerTestReminder(context)
-                            Toast.makeText(context, "یک یادآوری تستی برای شما ارسال شد 🔔", Toast.LENGTH_SHORT).show()
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "تست یادآور", fontSize = 11.sp)
-                    }
                 }
             }
 
@@ -472,6 +429,71 @@ fun RemindersScreen(
                     ReminderItemCard(reminder = reminder)
                 }
             }
+        }
+
+        // Sleep Time Picker Dialog
+        if (showSleepTimePicker) {
+            val sleepOptions = listOf("21:00", "21:30", "22:00", "22:30", "23:00", "23:30", "00:00", "00:30", "01:00")
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showSleepTimePicker = false },
+                title = {
+                    Text(
+                        text = "انتخاب ساعت خواب شبانه 🌙",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "یادآورها پس از این ساعت برای جلوگیری از مزاحمت خاموش می‌شوند:",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        androidx.compose.foundation.layout.FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            maxItemsInEachRow = 3
+                        ) {
+                            sleepOptions.forEach { timeStr ->
+                                val isSelected = selectedSleepTime == timeStr
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { selectedSleepTime = timeStr },
+                                    label = { Text("ساعت ${DateTimeUtils.toPersianDigits(timeStr)}", fontSize = 12.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = NooshPrimary,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.updateReminderSettings(
+                                isEnabled,
+                                selectedInterval,
+                                displayWakeUp,
+                                selectedSleepTime
+                            )
+                            showSleepTimePicker = false
+                            Toast.makeText(context, "ساعت خواب روی ${DateTimeUtils.toPersianDigits(selectedSleepTime)} تنظیم شد ✓", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary)
+                    ) {
+                        Text("ذخیره ساعت خواب", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { showSleepTimePicker = false }) {
+                        Text("انصراف")
+                    }
+                }
+            )
         }
     }
 }

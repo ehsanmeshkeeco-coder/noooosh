@@ -172,15 +172,15 @@ fun InteractiveTourOverlay(
             val rawTargetRect = when (currentStep.targetArea) {
                 TourTargetArea.WATER_RING -> ringBounds ?: currentStep.targetRect ?: Rect(
                     left = screenWidthPx * 0.12f,
-                    top = screenHeightPx * 0.18f,
+                    top = screenHeightPx * 0.14f,
                     right = screenWidthPx * 0.88f,
-                    bottom = screenHeightPx * 0.50f
+                    bottom = screenHeightPx * 0.44f
                 )
                 TourTargetArea.QUICK_ADD -> quickAddBounds ?: currentStep.targetRect ?: Rect(
                     left = screenWidthPx * 0.05f,
-                    top = screenHeightPx * 0.56f,
+                    top = screenHeightPx * 0.50f,
                     right = screenWidthPx * 0.95f,
-                    bottom = screenHeightPx * 0.69f
+                    bottom = screenHeightPx * 0.62f
                 )
                 TourTargetArea.BOTTOM_NAV -> bottomNavBounds ?: currentStep.targetRect ?: Rect(
                     left = 0f,
@@ -277,20 +277,19 @@ fun InteractiveTourOverlay(
             )
 
             // 4. Calculate where the tooltip card should float:
-            // If target is in the upper part of screen, tooltip floats BELOW the target.
-            // If target is in the lower part of screen, tooltip floats ABOVE the target.
-            val cardHeightPx = with(density) { 220.dp.toPx() }
-            val cardGapPx = with(density) { 16.dp.toPx() }
+            // For step 2 (QUICK_ADD) or targets in the lower half, float above the target so it doesn't overlap
+            val cardEstimatedHeight = with(density) { 190.dp.toPx() }
+            val cardGapPx = with(density) { 12.dp.toPx() }
 
-            val isTargetInUpperHalf = rawTargetRect.bottom < screenHeightPx * 0.52f
-            val pointerDirection = if (isTargetInUpperHalf) TooltipPointerDirection.UP else TooltipPointerDirection.DOWN
+            val shouldFloatBelow = currentStep.targetArea == TourTargetArea.WATER_RING
+            val pointerDirection = if (shouldFloatBelow) TooltipPointerDirection.UP else TooltipPointerDirection.DOWN
 
-            val targetCardY = if (isTargetInUpperHalf) {
-                // Float directly below the target
-                (rawTargetRect.bottom + cardGapPx).coerceAtMost(screenHeightPx - cardHeightPx - with(density) { 16.dp.toPx() })
+            val targetCardY = if (shouldFloatBelow) {
+                // Float below water progress ring
+                (rawTargetRect.bottom + cardGapPx).coerceAtMost(screenHeightPx - cardEstimatedHeight - with(density) { 16.dp.toPx() })
             } else {
-                // Float directly above the target
-                (rawTargetRect.top - cardHeightPx - cardGapPx).coerceAtLeast(with(density) { 32.dp.toPx() })
+                // Float above Quick Add buttons or Bottom Nav
+                (rawTargetRect.top - cardEstimatedHeight - cardGapPx).coerceAtLeast(with(density) { 24.dp.toPx() })
             }
 
             // Smoothly animate the card Y position as it travels across the screen

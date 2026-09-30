@@ -345,7 +345,7 @@ fun HydrationStreakCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Badges Flow Grid
+            // Badges Flow Grid (Clean 4 columns per row)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -418,7 +418,7 @@ private fun BadgeItemView(
             color = if (badge.isUnlocked) tierColor.copy(alpha = 0.8f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
         ),
         modifier = Modifier
-            .width(76.dp)
+            .width(68.dp)
             .clickable(onClick = onClick)
             .testTag("badge_item_${badge.id}")
     ) {
