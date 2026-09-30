@@ -30,6 +30,8 @@ object DateTimeUtils {
         return zdt.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
     }
 
+    fun formatTime(epochMillis: Long): String = formatDate(epochMillis)
+
     fun getPersianDayName(date: LocalDate): String {
         return when (date.dayOfWeek) {
             DayOfWeek.SATURDAY -> "شنبه"

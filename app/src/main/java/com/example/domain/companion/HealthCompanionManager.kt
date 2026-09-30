@@ -350,6 +350,122 @@ class HealthCompanionManager(
         }
     }
 
+    suspend fun getCompanionMonitoringData(): com.example.domain.model.CompanionMonitoringData? = withContext(Dispatchers.IO) {
+        val activeCompanionEntity = healthCompanionDao.getActiveCompanion() ?: return@withContext null
+        val companion = activeCompanionEntity.toDomain()
+
+        try {
+            val calendar = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val startOfDay = calendar.timeInMillis
+
+            val remoteState = supabaseClient.fetchLatestHealthState(companion.companionUserId)
+            val remoteIntakes = supabaseClient.fetchWaterIntakes(companion.companionUserId, startOfDay)
+            val remoteAlerts = supabaseClient.fetchUnacknowledgedEvents(companion.companionUserId)
+
+            val totalWater = remoteState?.dailyIntakeMl ?: remoteIntakes.sumOf { it.amountMl }
+            val goal = remoteState?.dailyGoalMl ?: 2000
+            val percentage = if (goal > 0) ((totalWater.toFloat() / goal) * 100).toInt() else 0
+            val streak = remoteState?.streakDays ?: 1
+            val lastIntake = remoteIntakes.maxByOrNull { it.consumedAt }
+            val lastDrinkTimeAgo = if (lastIntake != null) {
+                ((System.currentTimeMillis() - lastIntake.consumedAt) / 60000).coerceAtLeast(0)
+            } else null
+
+            val evaluation = when {
+                percentage >= 100 -> HealthStatusEvaluation.GOAL_REACHED
+                lastDrinkTimeAgo != null && lastDrinkTimeAgo > 120 -> HealthStatusEvaluation.BEHIND
+                percentage < 30 && Calendar.getInstance().get(Calendar.HOUR_OF_DAY) >= 15 -> HealthStatusEvaluation.BEHIND
+                else -> HealthStatusEvaluation.ON_TRACK
+            }
+
+            com.example.domain.model.CompanionMonitoringData(
+                companionName = companion.companionName,
+                companionUserId = companion.companionUserId,
+                isOnline = companion.status == CompanionConnectionStatus.CONNECTED,
+                todayWaterMl = totalWater,
+                dailyGoalMl = goal,
+                goalPercentage = percentage,
+                lastDrinkTimeAgoMinutes = lastDrinkTimeAgo,
+                lastDrinkAmountMl = lastIntake?.amountMl,
+                streakDays = streak,
+                evaluation = evaluation,
+                recentIntakes = remoteIntakes.sortedByDescending { it.consumedAt }.take(5),
+                alerts = remoteAlerts.take(5),
+                lastSyncTimestamp = System.currentTimeMillis()
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching companion monitoring data: ${e.message}")
+            com.example.domain.model.CompanionMonitoringData(
+                companionName = companion.companionName,
+                companionUserId = companion.companionUserId,
+                isOnline = companion.status == CompanionConnectionStatus.CONNECTED,
+                todayWaterMl = 0,
+                dailyGoalMl = 2000,
+                goalPercentage = 0,
+                lastDrinkTimeAgoMinutes = null,
+                lastDrinkAmountMl = null,
+                streakDays = 1,
+                evaluation = HealthStatusEvaluation.ON_TRACK,
+                recentIntakes = emptyList(),
+                alerts = emptyList(),
+                lastSyncTimestamp = System.currentTimeMillis()
+            )
+        }
+    }
+
+    suspend fun sendCompanionNudge(companionUserId: String, messageText: String? = null): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val event = HealthAlertEvent(
+                eventId = UUID.randomUUID().toString(),
+                eventType = HealthEventType.REMINDER_TRIGGERED,
+                userId = companionUserId,
+                timestamp = System.currentTimeMillis(),
+                date = DateTimeUtils.getTodayDateString(),
+                currentWaterMl = 0,
+                dailyGoalMl = 2000,
+                goalPercentage = 0,
+                lastWaterIntakeAt = null,
+                missedReminderCount = 0,
+                streak = 1,
+                severity = AlertSeverity.MEDIUM,
+                deliveryStatus = EventDeliveryStatus.SENT
+            )
+            supabaseClient.insertHealthAlertEvent(event)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending companion nudge: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun sendCompanionCheer(companionUserId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val event = HealthAlertEvent(
+                eventId = UUID.randomUUID().toString(),
+                eventType = HealthEventType.GOAL_REACHED,
+                userId = companionUserId,
+                timestamp = System.currentTimeMillis(),
+                date = DateTimeUtils.getTodayDateString(),
+                currentWaterMl = 2000,
+                dailyGoalMl = 2000,
+                goalPercentage = 100,
+                lastWaterIntakeAt = System.currentTimeMillis(),
+                missedReminderCount = 0,
+                streak = 1,
+                severity = AlertSeverity.LOW,
+                deliveryStatus = EventDeliveryStatus.SENT
+            )
+            supabaseClient.insertHealthAlertEvent(event)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending companion cheer: ${e.message}")
+            false
+        }
+    }
+
     companion object {
         private const val TAG = "HealthCompanionManager"
     }

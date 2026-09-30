@@ -29,9 +29,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Female
 import androidx.compose.material.icons.filled.Height
@@ -55,6 +55,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import com.example.presentation.theme.SuccessGreen
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -69,13 +70,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.core.util.DateTimeUtils
 import com.example.domain.usecase.WaterCalculationAlgorithm
 import com.example.presentation.components.NooshCharacterView
 import com.example.presentation.theme.NooshPrimary
@@ -142,157 +146,166 @@ fun OnboardingWizardScreen(
 
     val scrollState = rememberScrollState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 24.dp)
-            .testTag("onboarding_wizard_screen"),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Step Indicator Dots
-        Row(
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp, vertical = 24.dp)
+                .testTag("onboarding_wizard_screen"),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            listOf(0, 1, 2).forEach { stepIndex ->
-                val isActive = currentStep == stepIndex
-                val isCompleted = currentStep > stepIndex
+            // Step Indicator Dots
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(0, 1, 2).forEach { stepIndex ->
+                    val isActive = currentStep == stepIndex
+                    val isCompleted = currentStep > stepIndex
 
-                Box(
-                    modifier = Modifier
-                        .size(if (isActive) 28.dp else 12.dp, 12.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(
-                            when {
-                                isActive -> MaterialTheme.colorScheme.primary
-                                isCompleted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                else -> MaterialTheme.colorScheme.surfaceVariant
-                            }
-                        )
-                )
-                if (stepIndex < 2) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        AnimatedContent(
-            targetState = currentStep,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "wizard_step_anim"
-        ) { step ->
-            when (step) {
-                0 -> {
-                    // Step 1: Name and Profile Photo
-                    StepOneNameAndPhoto(
-                        name = name,
-                        onNameChange = { name = it },
-                        imageUri = selectedImageUri,
-                        existingImageUrl = initialProfile?.profileImageUrl,
-                        onPickPhoto = { photoPickerLauncher.launch("image/*") }
-                    )
-                }
-                1 -> {
-                    // Step 2: Biometrics (Weight, Height, Age, Gender)
-                    StepTwoBiometrics(
-                        weightKg = weightKg,
-                        onWeightChange = { weightKg = it },
-                        heightCm = heightCm,
-                        onHeightChange = { heightCm = it },
-                        age = age,
-                        onAgeChange = { age = it },
-                        gender = gender,
-                        onGenderChange = { gender = it }
-                    )
-                }
-                2 -> {
-                    // Step 3: Result & Personalized Recommendation
-                    StepThreeWaterCalculationResult(
-                        name = name,
-                        calculationResult = calculationResult
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        // Navigation Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (currentStep > 0) {
-                OutlinedButton(
-                    onClick = { currentStep-- },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "مرحله قبل")
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("مرحله قبل", fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-
-            Button(
-                onClick = {
-                    if (currentStep < 2) {
-                        currentStep++
-                    } else {
-                        // Complete onboarding: Save profile + recalculate
-                        if (!isSaving) {
-                            isSaving = true
-                            viewModel.saveOnboardingProfile(
-                                name = name,
-                                weightKg = weightKg,
-                                heightCm = heightCm,
-                                age = age,
-                                gender = gender,
-                                avatarBytes = selectedImageBytes,
-                                avatarUri = selectedImageUri?.toString(),
-                                onComplete = {
-                                    isSaving = false
-                                    Toast.makeText(context, "برنامه هوشمند شما با موفقیت فعال شد!", Toast.LENGTH_SHORT).show()
-                                    onCompleteOnboarding()
+                    Box(
+                        modifier = Modifier
+                            .size(if (isActive) 28.dp else 12.dp, 10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(
+                                when {
+                                    isActive -> MaterialTheme.colorScheme.primary
+                                    isCompleted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
                                 }
                             )
-                        }
+                    )
+                    if (stepIndex < 2) {
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
-                },
-                enabled = !isSaving,
-                colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .weight(if (currentStep > 0) 1.5f else 1f)
-                    .height(52.dp)
-                    .testTag("onboarding_next_button")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            AnimatedContent(
+                targetState = currentStep,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "wizard_step_anim"
+            ) { step ->
+                when (step) {
+                    0 -> {
+                        // Step 1: Name and Profile Photo
+                        StepOneNameAndPhoto(
+                            name = name,
+                            onNameChange = { name = it },
+                            imageUri = selectedImageUri,
+                            existingImageUrl = initialProfile?.profileImageUrl,
+                            onPickPhoto = { photoPickerLauncher.launch("image/*") }
+                        )
+                    }
+                    1 -> {
+                        // Step 2: Biometrics (Weight, Height, Age, Gender)
+                        StepTwoBiometrics(
+                            weightKg = weightKg,
+                            onWeightChange = { weightKg = it },
+                            heightCm = heightCm,
+                            onHeightChange = { heightCm = it },
+                            age = age,
+                            onAgeChange = { age = it },
+                            gender = gender,
+                            onGenderChange = { gender = it }
+                        )
+                    }
+                    2 -> {
+                        // Step 3: Result & Personalized Recommendation
+                        StepThreeWaterCalculationResult(
+                            name = name,
+                            calculationResult = calculationResult
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Navigation Buttons (RTL Mirrored)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = if (currentStep == 2) "تأیید و شروع تور تعاملی ✨" else "مرحله بعد",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (currentStep < 2) {
+                if (currentStep > 0) {
+                    OutlinedButton(
+                        onClick = { currentStep-- },
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "مرحله قبل",
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Icon(Icons.Default.ArrowForward, contentDescription = null)
+                        Text("مرحله قبل", fontSize = 14.sp)
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        if (currentStep < 2) {
+                            currentStep++
+                        } else {
+                            // Complete onboarding: Save profile + recalculate
+                            if (!isSaving) {
+                                isSaving = true
+                                viewModel.saveOnboardingProfile(
+                                    name = name,
+                                    weightKg = weightKg,
+                                    heightCm = heightCm,
+                                    age = age,
+                                    gender = gender,
+                                    avatarBytes = selectedImageBytes,
+                                    avatarUri = selectedImageUri?.toString(),
+                                    onComplete = {
+                                        isSaving = false
+                                        Toast.makeText(context, "برنامه هوشمند شما با موفقیت فعال شد!", Toast.LENGTH_SHORT).show()
+                                        onCompleteOnboarding()
+                                    }
+                                )
+                            }
+                        }
+                    },
+                    enabled = !isSaving,
+                    colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .weight(if (currentStep > 0) 1.5f else 1f)
+                        .height(52.dp)
+                        .testTag("onboarding_next_button")
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = if (currentStep == 2) "تأیید و شروع تور تعاملی ✨" else "مرحله بعد",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (currentStep < 2) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -478,7 +491,7 @@ private fun StepTwoBiometrics(
             ) {
                 Text("وزن:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                 Text(
-                    text = "${weightKg.toInt()} کیلوگرم",
+                    text = "${DateTimeUtils.toPersianDigits(weightKg.toInt().toString())} کیلوگرم",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.primary
@@ -502,7 +515,7 @@ private fun StepTwoBiometrics(
             ) {
                 Text("قد:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                 Text(
-                    text = "${heightCm.toInt()} سانتی‌متر",
+                    text = "${DateTimeUtils.toPersianDigits(heightCm.toInt().toString())} سانتی‌متر",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.primary
@@ -526,7 +539,7 @@ private fun StepTwoBiometrics(
             ) {
                 Text("سن:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                 Text(
-                    text = "$age سال",
+                    text = "${DateTimeUtils.toPersianDigits(age.toString())} سال",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.primary
@@ -642,13 +655,13 @@ private fun StepThreeWaterCalculationResult(
             ) {
                 MetricBox(
                     title = "هدف روزانه",
-                    value = "${calculationResult.dailyWaterGoalMl} ml",
-                    subtitle = "${calculationResult.recommendedGlasses} لیوان ۲۵۰ میلی‌لیتری",
+                    value = "${DateTimeUtils.toPersianDigits(calculationResult.dailyWaterGoalMl.toString())} ml",
+                    subtitle = "${DateTimeUtils.toPersianDigits(calculationResult.recommendedGlasses.toString())} لیوان ۲۵۰ میلی‌لیتری",
                     modifier = Modifier.weight(1f)
                 )
                 MetricBox(
                     title = "فاصله یادآورها",
-                    value = "هر ${calculationResult.recommendedIntervalMinutes} دقیقه",
+                    value = "هر ${DateTimeUtils.toPersianDigits(calculationResult.recommendedIntervalMinutes.toString())} دقیقه",
                     subtitle = "در بازه بیداری",
                     modifier = Modifier.weight(1f)
                 )

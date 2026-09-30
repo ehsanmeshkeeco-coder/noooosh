@@ -17,9 +17,11 @@ object NotificationHelper {
     const val CHANNEL_ID = "noosh_water_reminder_channel"
     const val URGENT_CHANNEL_ID = "noosh_water_urgent_reminder_channel"
     const val SOFT_CHANNEL_ID = "noosh_soft_water_reminder_channel"
+    const val WAKE_UP_CHANNEL_ID = "noosh_wake_up_reminder_channel"
     const val NOTIFICATION_ID = 1001
     const val URGENT_NOTIFICATION_ID = 1002
     const val SOFT_NOTIFICATION_ID = 1003
+    const val WAKE_UP_NOTIFICATION_ID = 2001
 
     const val ACTION_DRANK_WATER = "com.example.action.DRANK_WATER"
     const val ACTION_STALL_REMINDER = "com.example.action.STALL_REMINDER"
@@ -86,6 +88,20 @@ object NotificationHelper {
                 setSound(alarmSoundUri, urgentAudioAttributes)
             }
             notificationManager.createNotificationChannel(urgentChannel)
+
+            // Wake-up channel (Hourly prompt from 6:00 AM onwards)
+            val wakeUpChannel = NotificationChannel(
+                WAKE_UP_CHANNEL_ID,
+                "اعلام بیداری صبحگاهی (ساعت ۶ به بعد)",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "ارسال اعلان ساعتی جهت اعلام بیداری و تنظیم خودکار برنامه آب امروز"
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 200, 300)
+                setSound(soundUri, audioAttributes)
+            }
+            notificationManager.createNotificationChannel(wakeUpChannel)
         }
     }
 
@@ -352,10 +368,76 @@ object NotificationHelper {
         }
     }
 
+    fun showMorningWakeUpNotification(
+        context: Context,
+        personName: String
+    ) {
+        createNotificationChannel(context)
+
+        // Opening notification body opens MainActivity with morning wake up dialog
+        val contentIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("extra_open_wake_up_dialog", true)
+        }
+        val contentPendingIntent = PendingIntent.getActivity(
+            context,
+            WAKE_UP_NOTIFICATION_ID,
+            contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Action 1: "بله، بیدارم! 🌅"
+        val confirmIntent = Intent(context, com.example.alarms.WakeUpReceiver::class.java).apply {
+            action = com.example.alarms.WakeUpReceiver.ACTION_CONFIRM_WAKE_UP
+        }
+        val confirmPendingIntent = PendingIntent.getBroadcast(
+            context,
+            WAKE_UP_NOTIFICATION_ID + 1,
+            confirmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = "صبح بخیر! بیدار شدی؟ ☀️"
+        val body = "$personName عزیز، برای شروع زمان‌بندی یادآورهای آب امروز، لطفاً بیداری‌ات را اعلام کن."
+
+        val builder = NotificationCompat.Builder(context, WAKE_UP_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_water)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentIntent(contentPendingIntent)
+            .setAutoCancel(true)
+            .addAction(
+                R.drawable.ic_notification_water,
+                "بله، بیدارم! 🌅",
+                confirmPendingIntent
+            )
+            .addAction(
+                R.drawable.ic_notification_water,
+                "ورود به برنامه",
+                contentPendingIntent
+            )
+
+        try {
+            val manager = NotificationManagerCompat.from(context)
+            manager.notify(WAKE_UP_NOTIFICATION_ID, builder.build())
+        } catch (e: SecurityException) {
+            // Android 13+ permission catch
+        }
+    }
+
+    fun cancelWakeUpNotification(context: Context) {
+        val manager = NotificationManagerCompat.from(context)
+        manager.cancel(WAKE_UP_NOTIFICATION_ID)
+    }
+
     fun cancelNotification(context: Context) {
         val manager = NotificationManagerCompat.from(context)
         manager.cancel(NOTIFICATION_ID)
         manager.cancel(URGENT_NOTIFICATION_ID)
         manager.cancel(SOFT_NOTIFICATION_ID)
+        manager.cancel(WAKE_UP_NOTIFICATION_ID)
     }
 }

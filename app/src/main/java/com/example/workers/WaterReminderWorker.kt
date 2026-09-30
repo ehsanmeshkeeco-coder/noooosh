@@ -50,6 +50,13 @@ class WaterReminderWorker(
                 return Result.success()
             }
 
+            // 1.5 Check if user has confirmed wake-up for today
+            if (!com.example.alarms.WakeUpManager.isWakeUpConfirmedForToday(context)) {
+                Log.d("WaterReminderWorker", "Water reminder skipped: user hasn't declared wake-up for today yet.")
+                com.example.alarms.WakeUpManager.scheduleHourlyWakeUpPrompt(context)
+                return Result.success()
+            }
+
             // 2. Check quiet hours (sleep time)
             val wakeUp = profile.wakeUpTime.ifBlank { "08:00" }
             val sleep = profile.sleepTime.ifBlank { "23:00" }

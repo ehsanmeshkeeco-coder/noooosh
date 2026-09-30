@@ -31,12 +31,39 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `test water calculation`() {
-        val goalMl = 2000
-        val consumedMl = 1500
-        val percentage = ((consumedMl.toFloat() / goalMl) * 100).toInt()
-        val glasses = consumedMl / 250
-        assertEquals(75, percentage)
-        assertEquals(6, glasses)
+    fun `test wake up manager status and confirmation`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        // Initially or on fresh day, wake-up is not confirmed
+        val prefs = context.getSharedPreferences("noosh_wake_up_prefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+
+        val isConfirmedInitial = com.example.alarms.WakeUpManager.isWakeUpConfirmedForToday(context)
+        assertEquals(false, isConfirmedInitial)
+
+        // Confirm wake up
+        com.example.alarms.WakeUpManager.confirmWakeUp(
+            context = context,
+            wakeUpTime = "07:15",
+            drinkFirstGlass = false
+        )
+
+        val isConfirmedAfter = com.example.alarms.WakeUpManager.isWakeUpConfirmedForToday(context)
+        assertEquals(true, isConfirmedAfter)
+
+        val confirmedTime = com.example.alarms.WakeUpManager.getTodayConfirmedWakeUpTime(context)
+        assertEquals("07:15", confirmedTime)
+    }
+
+    @Test
+    fun `test wake up prompt alarm scheduling and cancellation`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = context.getSharedPreferences("noosh_wake_up_prefs", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+
+        // Should schedule without error
+        com.example.alarms.WakeUpManager.scheduleHourlyWakeUpPrompt(context, delayMinutes = 60)
+        // Should cancel without error
+        com.example.alarms.WakeUpManager.cancelHourlyWakeUpPrompt(context)
     }
 }

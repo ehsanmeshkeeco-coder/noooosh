@@ -28,8 +28,12 @@ class BootReceiver : BroadcastReceiver() {
                         if (isUserLoggedIn) {
                             val profile = app.userRepository.getUserProfile()
                             if (profile.reminderEnabled) {
-                                app.reminderRepository.scheduleDailyReminders(profile)
-                                app.reminderScheduler.scheduleNextPendingReminder()
+                                if (WakeUpManager.isWakeUpConfirmedForToday(context)) {
+                                    app.reminderRepository.scheduleDailyReminders(profile)
+                                    app.reminderScheduler.scheduleNextPendingReminder()
+                                } else {
+                                    WakeUpManager.scheduleHourlyWakeUpPrompt(context)
+                                }
                             }
                         }
                         // Section 75: Phone restart recovery - trigger Sync Worker

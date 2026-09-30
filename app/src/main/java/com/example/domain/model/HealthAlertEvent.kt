@@ -87,3 +87,20 @@ data class HealthCompanionStatus(
     val currentStreak: Int,
     val connection: HealthCompanionConnection?
 )
+
+data class CompanionMonitoringData(
+    val companionName: String,
+    val companionUserId: String,
+    val isOnline: Boolean = true,
+    val todayWaterMl: Int = 0,
+    val dailyGoalMl: Int = 2000,
+    val goalPercentage: Int = 0,
+    val lastDrinkTimeAgoMinutes: Long? = null,
+    val lastDrinkAmountMl: Int? = null,
+    val streakDays: Int = 1,
+    val evaluation: HealthStatusEvaluation = HealthStatusEvaluation.ON_TRACK,
+    val recentIntakes: List<com.example.data.remote.supabase.SupabaseWaterIntake> = emptyList(),
+    val alerts: List<HealthAlertEvent> = emptyList(),
+    val lastSyncTimestamp: Long = System.currentTimeMillis()
+)
+

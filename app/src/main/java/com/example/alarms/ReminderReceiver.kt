@@ -42,6 +42,13 @@ class ReminderReceiver : BroadcastReceiver() {
                             return@launch
                         }
 
+                        // Suppress regular water reminder if user hasn't declared wake-up yet today
+                        if (!WakeUpManager.isWakeUpConfirmedForToday(context)) {
+                            Log.d(TAG, "Reminder suppressed: user hasn't confirmed wake-up for today yet.")
+                            WakeUpManager.scheduleHourlyWakeUpPrompt(context)
+                            return@launch
+                        }
+
                         // If not retry, record REMINDER_TRIGGERED and schedule 15-minute retry check
                         if (!isRetry) {
                             // First reminder: Normal notification with sound and vibration

@@ -185,11 +185,18 @@ class NooshApplication : Application() {
                 if (isUserLoggedIn) {
                     val profile = userRepository.getUserProfile()
                     if (profile.reminderEnabled) {
-                        reminderScheduler.scheduleNextPendingReminder()
-                        com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
-                            this@NooshApplication,
-                            profile.reminderIntervalMinutes.coerceAtLeast(15)
-                        )
+                        if (com.example.alarms.WakeUpManager.isWakeUpConfirmedForToday(this@NooshApplication)) {
+                            reminderScheduler.scheduleNextPendingReminder()
+                            com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
+                                this@NooshApplication,
+                                profile.reminderIntervalMinutes.coerceAtLeast(15)
+                            )
+                        } else {
+                            // User has not declared wake-up yet today: suppress regular reminders and start hourly prompt
+                            reminderScheduler.cancelAllAlarms()
+                            com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(this@NooshApplication)
+                            com.example.alarms.WakeUpManager.scheduleHourlyWakeUpPrompt(this@NooshApplication)
+                        }
                     }
                 } else {
                     // Critical: unauthenticated users must NOT receive any notifications

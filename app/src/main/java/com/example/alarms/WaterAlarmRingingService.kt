@@ -59,6 +59,12 @@ class WaterAlarmRingingService : Service() {
             return START_NOT_STICKY
         }
 
+        // Suppress ringing if user hasn't declared wake-up today
+        if (!WakeUpManager.isWakeUpConfirmedForToday(this)) {
+            stopRingingAndSelf()
+            return START_NOT_STICKY
+        }
+
         val reminderId = intent?.getStringExtra(EXTRA_REMINDER_ID) ?: ""
         val personName = intent?.getStringExtra(EXTRA_PERSON_NAME) ?: "کاربر گرامی"
         val amountMl = intent?.getIntExtra(EXTRA_AMOUNT_ML, 250) ?: 250

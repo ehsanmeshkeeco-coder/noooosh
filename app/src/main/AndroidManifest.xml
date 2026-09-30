@@ -72,6 +72,15 @@
         </receiver>
 
         <receiver
+            android:name=".alarms.WakeUpReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.action.WAKE_UP_PROMPT" />
+                <action android:name="com.example.action.CONFIRM_WAKE_UP" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name=".alarms.BootReceiver"
             android:exported="true">
             <intent-filter>

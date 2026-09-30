@@ -1,11 +1,12 @@
 package com.example.presentation.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,11 +21,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -38,6 +42,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,9 +54,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -71,603 +78,400 @@ fun RemindersScreen(
     val context = LocalContext.current
     val dashboardState by viewModel.dashboardState.collectAsState()
     val remindersList by viewModel.reminders.collectAsState()
-    val isAlarmRinging by viewModel.isAlarmRinging.collectAsState()
+    val todayWakeUpTime by viewModel.todayWakeUpTime.collectAsState()
 
     val profile = dashboardState?.profile
 
     var isEnabled by remember(profile) { mutableStateOf(profile?.reminderEnabled ?: true) }
     var selectedInterval by remember(profile) { mutableIntStateOf(profile?.reminderIntervalMinutes ?: 60) }
-    var startTime by remember(profile) { mutableStateOf(profile?.wakeUpTime ?: "08:00") }
-    var endTime by remember(profile) { mutableStateOf(profile?.sleepTime ?: "23:00") }
+    val displayWakeUp = todayWakeUpTime ?: profile?.wakeUpTime ?: "08:00"
+    val displaySleep = profile?.sleepTime ?: "23:00"
+
     var soundEnabled by remember(profile) { mutableStateOf(profile?.soundEnabled ?: true) }
     var vibrateEnabled by remember(profile) { mutableStateOf(profile?.vibrateEnabled ?: true) }
-    var inactivityMinutes by remember(profile) { mutableStateOf(profile?.inactivityThresholdMinutes ?: 120) }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .testTag("reminders_screen"),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Screen Title
-            Text(
-                text = stringResource(R.string.settings_title),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                text = "تنظیم بازه‌های زمانی هوشمند یادآوری آب",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp)
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Master Toggle Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isEnabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                    else MaterialTheme.colorScheme.surfaceVariant
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Alarm,
-                                contentDescription = null,
-                                tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = stringResource(R.string.reminders_toggle),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (isEnabled) "یادآورها فعال هستند" else "یادآورها موقتاً غیرفعالند",
-                                fontSize = 12.sp,
-                                color = if (isEnabled) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Switch(
-                        checked = isEnabled,
-                        onCheckedChange = { checked ->
-                            isEnabled = checked
-                            viewModel.updateReminderSettings(checked, selectedInterval, startTime, endTime)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Intervals selection
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        LazyColumn(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .testTag("reminders_screen"),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header
+            item {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = stringResource(R.string.reminder_interval),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(30, 45, 60, 90, 120).forEach { mins ->
-                            val isSelected = selectedInterval == mins
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    selectedInterval = mins
-                                    viewModel.updateReminderSettings(isEnabled, mins, startTime, endTime)
-                                },
-                                label = { Text(text = "${DateTimeUtils.toPersianDigits(mins.toString())} دقیقه", fontSize = 11.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = NooshPrimary,
-                                    selectedLabelColor = Color.White
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Start and End times
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.reminder_start_time),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "ساعت ${DateTimeUtils.toPersianDigits(startTime)}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.reminder_end_time),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "ساعت ${DateTimeUtils.toPersianDigits(endTime)}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Inactivity Threshold Card (Section 56)
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "تشخیص عدم فعالیت طولانی",
-                        fontSize = 15.sp,
+                        text = "یادآورهای هوشمند نوشیدن آب",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "اگر در زمان بیداری بیش از این زمان آبی مصرف نشود، هشدار عدم فعالیت برای همراه ارسال می‌شود.",
-                        fontSize = 11.sp,
+                        text = "زمان‌بندی خودکار از زمان بیداری تا خواب بدون مزاحمت هنگام استراحت",
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(90, 120, 180, 240).forEach { mins ->
-                            val isSelected = inactivityMinutes == mins
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    inactivityMinutes = mins
-                                    profile?.let {
-                                        viewModel.updateProfile(it.copy(inactivityThresholdMinutes = mins))
-                                    }
-                                },
-                                label = {
-                                    Text(
-                                        text = "${DateTimeUtils.toPersianDigits((mins / 60.0).toString().removeSuffix(".0"))} ساعت",
-                                        fontSize = 12.sp
+            // Card 1: Dynamic Wake-Up & Sleep Hours Card
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFFEF3C7)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.WbSunny,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "برنامه بیداری و خواب شما",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "یادآورها فقط بین این دو ساعت پخش می‌شوند",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = { viewModel.openMorningWakeUp() },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = NooshSubtleBlue),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "تغییر ساعت بیداری",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NooshPrimary
                                 )
-                            )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Wake up Box
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .padding(12.dp)
+                            ) {
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.WbSunny,
+                                            contentDescription = null,
+                                            tint = Color(0xFFF59E0B),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("ساعت بیداری امروز", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "ساعت ${DateTimeUtils.toPersianDigits(displayWakeUp)}",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            // Sleep Box
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .padding(12.dp)
+                            ) {
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Bedtime,
+                                            contentDescription = null,
+                                            tint = Color(0xFF6366F1),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("ساعت خواب شب", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "ساعت ${DateTimeUtils.toPersianDigits(displaySleep)}",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Sound & Vibration Preferences
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+            // Card 2: Main Reminder Toggle Card
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.VolumeUp, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = stringResource(R.string.sound_toggle),
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isEnabled) NooshSubtleBlue else MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Alarm,
+                                    contentDescription = null,
+                                    tint = if (isEnabled) NooshPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "وضعیت یادآورهای روزانه",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isEnabled) "یادآوری منظم فعال است ✓" else "یادآورها موقتاً خاموش هستند",
+                                    fontSize = 12.sp,
+                                    color = if (isEnabled) SuccessGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
+
                         Switch(
-                            checked = soundEnabled,
+                            checked = isEnabled,
                             onCheckedChange = { checked ->
-                                soundEnabled = checked
-                                profile?.let { viewModel.updateProfile(it.copy(soundEnabled = checked)) }
+                                isEnabled = checked
+                                viewModel.updateReminderSettings(checked, selectedInterval, displayWakeUp, displaySleep)
                             },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = NooshPrimary
                             )
                         )
                     }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+            // Card 3: Reminder Interval Selection
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "فاصله زمانی بین یادآوری‌ها",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "میزان فاصله‌ای که مایلید بین هر نوبت نوشیدن آب به شما یادآوری شود:",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                30 to "۳۰ دقیقه",
+                                45 to "۴۵ دقیقه",
+                                60 to "۱ ساعت",
+                                90 to "۱.۵ ساعت",
+                                120 to "۲ ساعت"
+                            ).forEach { (mins, label) ->
+                                val isSelected = selectedInterval == mins
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        selectedInterval = mins
+                                        viewModel.updateReminderSettings(isEnabled, mins, displayWakeUp, displaySleep)
+                                    },
+                                    label = { Text(text = label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = NooshPrimary,
+                                        selectedLabelColor = Color.White
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Card 4: Sound & Vibration
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.VolumeUp, contentDescription = null, tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "پخش صدای زنگ", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Switch(
+                                checked = soundEnabled,
+                                onCheckedChange = { checked ->
+                                    soundEnabled = checked
+                                    profile?.let { viewModel.updateProfile(it.copy(soundEnabled = checked)) }
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Vibration, contentDescription = null, tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "لرزش هنگام یادآوری", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Switch(
+                                checked = vibrateEnabled,
+                                onCheckedChange = { checked ->
+                                    vibrateEnabled = checked
+                                    profile?.let { viewModel.updateProfile(it.copy(vibrateEnabled = checked)) }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Card 5: Schedule List for Today
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "نوبت‌های یادآوری امروز",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.triggerTestReminder(context)
+                            Toast.makeText(context, "یک یادآوری تستی برای شما ارسال شد 🔔", Toast.LENGTH_SHORT).show()
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Vibration, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = stringResource(R.string.vibration_toggle),
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Switch(
-                            checked = vibrateEnabled,
-                            onCheckedChange = { checked ->
-                                vibrateEnabled = checked
-                                profile?.let { viewModel.updateProfile(it.copy(vibrateEnabled = checked)) }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
+                        Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "تست یادآور", fontSize = 11.sp)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Test Notification Trigger Button
-            OutlinedButton(
-                onClick = {
-                    viewModel.triggerTestReminder(context)
-                    Toast.makeText(context, "اعلان تست ارسال شد 🔔", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .testTag("btn_test_notification"),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = null,
-                    tint = NooshPrimary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "ارسال اعلان تست (نوتیفیکیشن عادی)",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = NooshPrimary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Test Soft Recurring Background Alarm Service Button
-            if (isAlarmRinging) {
-                Button(
-                    onClick = {
-                        viewModel.stopAlarmService(context)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .testTag("btn_stop_ringing_alarm"),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDC2626)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Alarm,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "توقف زنگ یادآور فعال (در حال پخش)",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            } else {
-                Button(
-                    onClick = {
-                        viewModel.triggerTestAlarmService(context)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .testTag("btn_test_ringing_alarm"),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0284C7)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Alarm,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "تست زنگ ملایم پس‌زمینه (نوای تکرارشونده) ⏰",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
-
-            Text(
-                text = "این سرویس در پس‌زمینه صدای زنگ ملایم و تکرارشونده پخش می‌کند و تا زمانی که وارد برنامه نشوید یا روی اعلان تپ نکنید، زنگ ادامه خواهد داشت.",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 16.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp, start = 4.dp, end = 4.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // WorkManager Periodic Background Reminder Card
-            Card(
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    Color(0xFF22C55E).copy(alpha = 0.5f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("workmanager_reminder_card")
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+            if (remindersList.isEmpty()) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF22C55E)),
+                                .fillMaxWidth()
+                                .padding(20.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                            Text(
+                                text = "یادآوری برای ساعات باقیمانده امروز تنظیم نشده است.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "یادآور دوره‌ای WorkManager",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "همگام با سرویس بهینه باتری اندروید",
-                                fontSize = 11.sp,
-                                color = Color(0xFF22C55E)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = "با این قابلیت، حتی اگر برنامه بسته باشد، یادآور ملایم در نوار اعلانات ظاهر شده و می‌توانید مستقیماً از نوار وضعیت بدون باز کردن برنامه آب بنوشید یا آن را به تعویق بیندازید:",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = "💧 ثبت ۲۵۰ml",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                        Text(
-                            text = "🥛 ثبت ۵۰۰ml",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                        Text(
-                            text = "⏳ تعویق ۱۰ دقیقه‌ای",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFF59E0B),
-                            modifier = Modifier
-                                .background(Color(0xFFFEF3C7).copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Button(
-                        onClick = {
-                            viewModel.triggerWorkManagerTestReminder(context)
-                            Toast.makeText(
-                                context,
-                                "اعلان هوشمند WorkManager ارسال شد! نوار اعلانات را پایین بکشید 💧",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("btn_trigger_workmanager_reminder"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "تست اعلان هوشمند در نوار اعلانات",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
                     }
                 }
+            } else {
+                items(remindersList) { reminder ->
+                    ReminderItemCard(reminder = reminder)
+                }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "برنامه یادآورهای امروز",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // Reminders list
-        if (remindersList.isEmpty()) {
-            item {
-                Text(
-                    text = "برنامه یادآورهای امروز آماده است. در زمان‌های مشخص اعلان دریافت خواهید کرد 💧",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            }
-        } else {
-            items(remindersList) { reminder ->
-                ReminderItemCard(reminder = reminder)
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(90.dp))
         }
     }
 }
@@ -675,68 +479,65 @@ fun RemindersScreen(
 @Composable
 private fun ReminderItemCard(reminder: Reminder) {
     val isCompleted = reminder.status == ReminderStatus.COMPLETED
-    val isNotified = reminder.status == ReminderStatus.NOTIFIED
-    val isSnoozed = reminder.status == ReminderStatus.SNOOZED
+    val timeFormatted = DateTimeUtils.formatTime(reminder.scheduledAt)
 
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCompleted) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surface
         ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
+        border = BorderStroke(
+            1.dp,
+            if (isCompleted) MaterialTheme.colorScheme.outline.copy(alpha = 0.2f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isCompleted) 0.dp else 1.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Schedule,
-                    contentDescription = null,
-                    tint = if (isCompleted) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(if (isCompleted) Color(0xFFDCFCE7) else NooshSubtleBlue),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.WaterDrop,
+                        contentDescription = null,
+                        tint = if (isCompleted) SuccessGreen else NooshPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.width(10.dp))
+
                 Column {
                     Text(
-                        text = "ساعت ${DateTimeUtils.formatDate(reminder.scheduledAt)}",
-                        fontSize = 14.sp,
+                        text = "نوبت نوشیدن آب (${DateTimeUtils.toPersianDigits(reminder.amountMl.toString())} میل)",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "${DateTimeUtils.toPersianDigits(reminder.amountMl.toString())} میلی‌لیتر (یک لیوان)",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = if (isCompleted) "نوشیده شد ✓" else "زمان‌بندی شده برای ساعت $timeFormatted",
+                        fontSize = 11.sp,
+                        color = if (isCompleted) SuccessGreen else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            val statusText = when {
-                isCompleted -> "نوشیده شد ✓"
-                isNotified -> "اعلان شده 🔔"
-                isSnoozed -> "به تعویق افتاده"
-                else -> "در انتظار"
-            }
-            val statusColor = when {
-                isCompleted -> SuccessGreen
-                isNotified -> NooshPrimary
-                isSnoozed -> Color(0xFFF59E0B)
-                else -> Color(0xFF94A3B8)
-            }
-
             Text(
-                text = statusText,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = statusColor
+                text = DateTimeUtils.toPersianDigits(timeFormatted),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else NooshPrimary
             )
         }
     }

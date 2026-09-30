@@ -45,6 +45,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.presentation.components.InteractiveTourOverlay
+import com.example.presentation.components.MorningWakeUpDialog
 import com.example.presentation.navigation.BottomNavScreens
 import com.example.presentation.navigation.Screen
 import com.example.presentation.screens.AuthScreen
@@ -103,6 +104,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        if (intent?.getBooleanExtra("extra_open_wake_up_dialog", false) == true) {
+            viewModel.openMorningWakeUp()
+        }
+
         setContent {
             val dashboardState by viewModel.dashboardState.collectAsState()
             val themeMode = dashboardState?.profile?.themeMode ?: "system"
@@ -123,12 +128,17 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Interacting with the app stops any background reminder alarm
         com.example.alarms.WaterAlarmRingingService.stop(applicationContext)
+        viewModel.checkMorningWakeUp()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         com.example.alarms.WaterAlarmRingingService.stop(applicationContext)
+        if (intent.getBooleanExtra("extra_open_wake_up_dialog", false)) {
+            viewModel.openMorningWakeUp()
+        }
+        viewModel.checkMorningWakeUp()
     }
 }
 
@@ -259,7 +269,11 @@ fun MainAppScaffold(viewModel: MainViewModel) {
                     DashboardScreen(
                         viewModel = viewModel,
                         onProgressRingPositioned = { ringBounds = it },
-                        onQuickAddPositioned = { quickAddBounds = it }
+                        onQuickAddPositioned = { quickAddBounds = it },
+                        onStartTour = {
+                            tourStepIndex = 0
+                            showInteractiveTour = true
+                        }
                     )
                 }
 
@@ -347,10 +361,28 @@ fun MainAppScaffold(viewModel: MainViewModel) {
                         showInteractiveTour = false
                     }
                 },
+                onPreviousStep = {
+                    if (tourStepIndex > 0) {
+                        tourStepIndex--
+                    }
+                },
                 onSkipTour = { showInteractiveTour = false },
                 ringBounds = ringBounds,
                 quickAddBounds = quickAddBounds,
                 bottomNavBounds = bottomNavBounds
+            )
+        }
+
+        // Morning Wake-Up Dynamic Schedule Dialog
+        val showMorningWakeUp by viewModel.showMorningWakeUpDialog.collectAsState()
+        if (showMorningWakeUp) {
+            MorningWakeUpDialog(
+                onConfirm = { wakeUpTime, drinkFirstGlass ->
+                    viewModel.confirmMorningWakeUp(wakeUpTime, drinkFirstGlass)
+                },
+                onDismiss = {
+                    viewModel.dismissMorningWakeUp()
+                }
             )
         }
 

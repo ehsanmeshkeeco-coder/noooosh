@@ -9,6 +9,7 @@ import com.example.data.remote.clerk.AuthState
 import com.example.data.remote.clerk.ClerkAuthManager
 import com.example.data.remote.clerk.ClerkAuthResult
 import com.clerk.android.Clerk
+import com.example.core.util.DateTimeUtils
 import com.example.domain.companion.HealthCompanionManager
 import com.example.domain.model.AlertFilterPolicy
 import com.example.domain.model.AlertSeverity
@@ -103,9 +104,62 @@ class MainViewModel(
     private val _companionStatus = MutableStateFlow<HealthCompanionStatus?>(null)
     val companionStatus: StateFlow<HealthCompanionStatus?> = _companionStatus.asStateFlow()
 
+    private val _companionMonitoring = MutableStateFlow<com.example.domain.model.CompanionMonitoringData?>(null)
+    val companionMonitoring: StateFlow<com.example.domain.model.CompanionMonitoringData?> = _companionMonitoring.asStateFlow()
+
+    private val _isRefreshingMonitoring = MutableStateFlow(false)
+    val isRefreshingMonitoring: StateFlow<Boolean> = _isRefreshingMonitoring.asStateFlow()
+
+    private val _showMorningWakeUpDialog = MutableStateFlow(false)
+    val showMorningWakeUpDialog: StateFlow<Boolean> = _showMorningWakeUpDialog.asStateFlow()
+
+    private val _todayWakeUpTime = MutableStateFlow<String?>(null)
+    val todayWakeUpTime: StateFlow<String?> = _todayWakeUpTime.asStateFlow()
+
+    private var lastConfirmedWakeUpDate: String? = null
+
     init {
         loadMonthlyReport()
         refreshCompanionStatus()
+        refreshCompanionMonitoring()
+        checkMorningWakeUp()
+    }
+
+    fun checkMorningWakeUp() {
+        val calendar = java.util.Calendar.getInstance()
+        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val context = com.example.NooshApplication.instance
+        val isConfirmed = com.example.alarms.WakeUpManager.isWakeUpConfirmedForToday(context)
+        if (isConfirmed) {
+            _todayWakeUpTime.value = com.example.alarms.WakeUpManager.getTodayConfirmedWakeUpTime(context)
+            lastConfirmedWakeUpDate = DateTimeUtils.getTodayDateString()
+        } else if (hour >= 6) {
+            _showMorningWakeUpDialog.value = true
+            com.example.alarms.WakeUpManager.scheduleHourlyWakeUpPrompt(context)
+        }
+    }
+
+    fun confirmMorningWakeUp(wakeUpTimeStr: String, drinkFirstGlass: Boolean) {
+        val todayStr = DateTimeUtils.getTodayDateString()
+        lastConfirmedWakeUpDate = todayStr
+        _todayWakeUpTime.value = wakeUpTimeStr
+        _showMorningWakeUpDialog.value = false
+
+        val context = com.example.NooshApplication.instance
+        com.example.alarms.WakeUpManager.confirmWakeUp(
+            context = context,
+            wakeUpTime = wakeUpTimeStr,
+            drinkFirstGlass = drinkFirstGlass,
+            coroutineScope = viewModelScope
+        )
+    }
+
+    fun dismissMorningWakeUp() {
+        _showMorningWakeUpDialog.value = false
+    }
+
+    fun openMorningWakeUp() {
+        _showMorningWakeUpDialog.value = true
     }
 
     fun loadMonthlyReport() {
@@ -465,8 +519,46 @@ class MainViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val connection = healthCompanionManager?.joinInviteRoom(roomCode, companionName)
             refreshCompanionStatus()
+            refreshCompanionMonitoring()
             withContext(Dispatchers.Main) {
                 onComplete(connection != null)
+            }
+        }
+    }
+
+    fun refreshCompanionMonitoring() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isRefreshingMonitoring.value = true
+            try {
+                _companionMonitoring.value = healthCompanionManager?.getCompanionMonitoringData()
+            } catch (e: Exception) {
+                Log.w("MainViewModel", "Error refreshing companion monitoring: ${e.message}")
+            } finally {
+                _isRefreshingMonitoring.value = false
+            }
+        }
+    }
+
+    fun sendCompanionNudge(onResult: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val companion = activeCompanion.value
+            val success = if (companion != null) {
+                healthCompanionManager?.sendCompanionNudge(companion.companionUserId) ?: false
+            } else false
+            withContext(Dispatchers.Main) {
+                onResult?.invoke(success)
+            }
+        }
+    }
+
+    fun sendCompanionCheer(onResult: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val companion = activeCompanion.value
+            val success = if (companion != null) {
+                healthCompanionManager?.sendCompanionCheer(companion.companionUserId) ?: false
+            } else false
+            withContext(Dispatchers.Main) {
+                onResult?.invoke(success)
             }
         }
     }

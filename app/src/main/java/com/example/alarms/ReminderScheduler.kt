@@ -30,6 +30,13 @@ class ReminderScheduler(
                     return@launch
                 }
 
+                // CRITICAL: Suppress regular alarms until user confirms wake-up for today
+                if (!WakeUpManager.isWakeUpConfirmedForToday(context)) {
+                    Log.d(TAG, "Regular water reminders suspended: user has not confirmed wake-up for today yet.")
+                    WakeUpManager.scheduleHourlyWakeUpPrompt(context)
+                    return@launch
+                }
+
                 val nextReminder = reminderRepository.getNextReminder()
                 if (nextReminder != null) {
                     scheduleExactAlarm(nextReminder)

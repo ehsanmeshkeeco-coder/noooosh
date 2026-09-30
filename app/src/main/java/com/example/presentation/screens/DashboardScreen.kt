@@ -19,13 +19,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -72,7 +78,8 @@ fun DashboardScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier,
     onProgressRingPositioned: ((Rect) -> Unit)? = null,
-    onQuickAddPositioned: ((Rect) -> Unit)? = null
+    onQuickAddPositioned: ((Rect) -> Unit)? = null,
+    onStartTour: (() -> Unit)? = null
 ) {
     val dashboardState by viewModel.dashboardState.collectAsState()
     val celebrationEvent by viewModel.celebrationEvent.collectAsState()
@@ -120,6 +127,32 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // Interactive Tour Replay Button
+                        if (onStartTour != null) {
+                            Surface(
+                                onClick = { onStartTour() },
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                ),
+                                modifier = Modifier.testTag("btn_start_tour")
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(38.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.HelpOutline,
+                                        contentDescription = "راهنمای تعاملی نوش",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+
                         // Theme Switcher Button (Dark / Light Mode)
                         val themeMode = state?.profile?.themeMode ?: "system"
                         val isSystemDark = isSystemInDarkTheme()
@@ -178,6 +211,79 @@ fun DashboardScreen(
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
+
+                // Morning Wake-up Status Card (Active from 6 AM onwards)
+                val todayWakeUpTime by viewModel.todayWakeUpTime.collectAsState()
+                val calendar = remember { java.util.Calendar.getInstance() }
+                val currentHour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                if (currentHour >= 6) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (todayWakeUpTime != null) MaterialTheme.colorScheme.surface
+                            else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (todayWakeUpTime != null) MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.openMorningWakeUp() }
+                            .testTag("morning_wake_up_card")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(if (todayWakeUpTime != null) Color(0xFFFEF3C7) else Color(0xFFFDE68A)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.WbSunny,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = if (todayWakeUpTime != null) "ساعت بیداری امروز: ${DateTimeUtils.toPersianDigits(todayWakeUpTime!!)}" else "اعلام بیداری در نوش ☀️",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (todayWakeUpTime != null) "برنامه یادآورها از این ساعت فعال شد (لمس برای ویرایش)" else "یادآورهای روزانه تا اعلام بیداری متوقف هستند (ارسال یادآور ساعتی)",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Icon(
+                                imageVector = if (todayWakeUpTime != null) Icons.Default.Edit else Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
 
                 // Gamification Level Progress Card
                 state?.levelInfo?.let { levelInfo ->
@@ -258,9 +364,11 @@ fun DashboardScreen(
                                     fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                val nextTime = state?.nextReminder?.scheduledAt
+                                 val nextTime = state?.nextReminder?.scheduledAt
                                 Text(
-                                    text = if (nextTime != null) {
+                                    text = if (todayWakeUpTime == null && currentHour >= 6) {
+                                        "در انتظار اعلام بیداری شما ☀️"
+                                    } else if (nextTime != null) {
                                         "ساعت ${DateTimeUtils.formatDate(nextTime)}"
                                     } else {
                                         stringResource(R.string.no_reminders_left)
@@ -272,14 +380,26 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Snooze 15 min button if next reminder exists
-                        state?.nextReminder?.let { reminder ->
-                            OutlinedButton(
-                                onClick = { viewModel.snoozeReminder(reminder.id, 15) },
+                        // Snooze or Wake-up prompt button
+                        if (todayWakeUpTime == null && currentHour >= 6) {
+                            Button(
+                                onClick = { viewModel.openMorningWakeUp() },
                                 shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.height(34.dp)
+                                colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary),
+                                modifier = Modifier.height(34.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Text(text = "۱۵ دقیقه بعد", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                Text(text = "اعلام بیداری", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            state?.nextReminder?.let { reminder ->
+                                OutlinedButton(
+                                    onClick = { viewModel.snoozeReminder(reminder.id, 15) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text(text = "۱۵ دقیقه بعد", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                }
                             }
                         }
                     }
