@@ -3,9 +3,12 @@ package com.example.presentation.screens
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +41,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -92,6 +96,8 @@ fun RemindersScreen(
 
     var showSleepTimePicker by remember { mutableStateOf(false) }
     var selectedSleepTime by remember(displaySleep) { mutableStateOf(displaySleep) }
+    var showWakeUpTimePicker by remember { mutableStateOf(false) }
+    var selectedWakeUpTime by remember(displayWakeUp) { mutableStateOf(displayWakeUp) }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         LazyColumn(
@@ -144,7 +150,7 @@ fun RemindersScreen(
                                     .weight(1f)
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    .clickable { viewModel.openMorningWakeUp() }
+                                    .clickable { showWakeUpTimePicker = true }
                                     .padding(12.dp)
                             ) {
                                 Column {
@@ -278,7 +284,7 @@ fun RemindersScreen(
                 }
             }
 
-            // Card 3: Reminder Interval Selection
+            // Card 3: Reminder Interval Selection (Clean 3x2 Grid)
             item {
                 Card(
                     shape = RoundedCornerShape(18.dp),
@@ -288,45 +294,79 @@ fun RemindersScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "فاصله زمانی بین یادآوری‌ها",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "میزان فاصله‌ای که مایلید بین هر نوبت نوشیدن آب به شما یادآوری شود:",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            listOf(
-                                30 to "۳۰ دقیقه",
-                                45 to "۴۵ دقیقه",
-                                60 to "۱ ساعت",
-                                90 to "۱.۵ ساعت",
-                                120 to "۲ ساعت"
-                            ).forEach { (mins, label) ->
-                                val isSelected = selectedInterval == mins
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        selectedInterval = mins
-                                        viewModel.updateReminderSettings(isEnabled, mins, displayWakeUp, displaySleep)
-                                    },
-                                    label = { Text(text = label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = NooshPrimary,
-                                        selectedLabelColor = Color.White
-                                    ),
-                                    modifier = Modifier.weight(1f)
-                                )
+                            Text(
+                                text = "فاصله بین یادآورها",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            val intervalText = when (selectedInterval) {
+                                30 -> "هر ۳۰ دقیقه"
+                                45 -> "هر ۴۵ دقیقه"
+                                60 -> "هر ۱ ساعت"
+                                90 -> "هر ۱.۵ ساعت"
+                                120 -> "هر ۲ ساعت"
+                                180 -> "هر ۳ ساعت"
+                                else -> "هر $selectedInterval دقیقه"
+                            }
+                            Text(
+                                text = DateTimeUtils.toPersianDigits(intervalText),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NooshPrimary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        val intervalOptions = listOf(
+                            listOf(30 to "۳۰ دقیقه", 45 to "۴۵ دقیقه", 60 to "۱ ساعت"),
+                            listOf(90 to "۱.۵ ساعت", 120 to "۲ ساعت", 180 to "۳ ساعت")
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            intervalOptions.forEach { rowOptions ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowOptions.forEach { (mins, label) ->
+                                        val isSelected = selectedInterval == mins
+                                        Surface(
+                                            onClick = {
+                                                selectedInterval = mins
+                                                viewModel.updateReminderSettings(isEnabled, mins, displayWakeUp, displaySleep)
+                                                Toast.makeText(context, "فاصله یادآوری روی ${DateTimeUtils.toPersianDigits(label)} تنظیم شد ✓", Toast.LENGTH_SHORT).show()
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = if (isSelected) NooshPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (isSelected) NooshPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                                            ),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(44.dp)
+                                        ) {
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier.fillMaxSize()
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -446,12 +486,13 @@ fun RemindersScreen(
                 text = {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "یادآورها پس از این ساعت برای جلوگیری از مزاحمت خاموش می‌شوند:",
+                            text = "یادآورها پس از این ساعت خاموش می‌شوند:",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(14.dp))
-                        androidx.compose.foundation.layout.FlowRow(
+                        @OptIn(ExperimentalLayoutApi::class)
+                        FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             maxItemsInEachRow = 3
@@ -490,6 +531,72 @@ fun RemindersScreen(
                 },
                 dismissButton = {
                     androidx.compose.material3.TextButton(onClick = { showSleepTimePicker = false }) {
+                        Text("انصراف")
+                    }
+                }
+            )
+        }
+
+        // Wake-Up Time Picker Dialog
+        if (showWakeUpTimePicker) {
+            val wakeUpOptions = listOf("05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30")
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showWakeUpTimePicker = false },
+                title = {
+                    Text(
+                        text = "انتخاب ساعت بیداری صبحگاهی ☀️",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "یادآورها از این ساعت آغاز به فعالیت می‌کنند:",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        @OptIn(ExperimentalLayoutApi::class)
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            maxItemsInEachRow = 3
+                        ) {
+                            wakeUpOptions.forEach { timeStr ->
+                                val isSelected = selectedWakeUpTime == timeStr
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { selectedWakeUpTime = timeStr },
+                                    label = { Text("ساعت ${DateTimeUtils.toPersianDigits(timeStr)}", fontSize = 12.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = NooshPrimary,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.updateReminderSettings(
+                                isEnabled,
+                                selectedInterval,
+                                selectedWakeUpTime,
+                                displaySleep
+                            )
+                            showWakeUpTimePicker = false
+                            Toast.makeText(context, "ساعت بیداری روی ${DateTimeUtils.toPersianDigits(selectedWakeUpTime)} تنظیم شد ✓", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary)
+                    ) {
+                        Text("ذخیره ساعت بیداری", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { showWakeUpTimePicker = false }) {
                         Text("انصراف")
                     }
                 }

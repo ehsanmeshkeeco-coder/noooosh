@@ -248,8 +248,10 @@ class MainViewModel(
                 startTime = startTime,
                 endTime = endTime
             )
+            val updatedProfile = userRepository.getUserProfile()
             val appContext = com.example.NooshApplication.instance
             if (enabled) {
+                reminderRepository.scheduleDailyReminders(updatedProfile)
                 reminderScheduler.scheduleNextPendingReminder()
                 com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
                     appContext,
@@ -438,6 +440,7 @@ class MainViewModel(
         email: String,
         name: String,
         password: String? = null,
+        username: String? = null,
         onResult: ((isSuccess: Boolean, message: String) -> Unit)? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -448,6 +451,7 @@ class MainViewModel(
                         val profile = userRepository.getUserProfile()
                         val updated = profile.copy(
                             name = result.user.firstName.ifBlank { name },
+                            username = username?.ifBlank { null } ?: profile.username,
                             email = result.user.email,
                             clerkUserId = result.user.id
                         )
@@ -470,6 +474,7 @@ class MainViewModel(
                         val profile = userRepository.getUserProfile()
                         val updated = profile.copy(
                             name = name,
+                            username = username?.ifBlank { null } ?: profile.username,
                             email = email,
                             clerkUserId = result.signUpId
                         )

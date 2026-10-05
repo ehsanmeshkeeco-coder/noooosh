@@ -12,9 +12,7 @@ val VazirmatnFontFamily = FontFamily(
     Font(R.font.vazirmatn, FontWeight.Normal),
     Font(R.font.vazirmatn, FontWeight.Medium),
     Font(R.font.vazirmatn, FontWeight.SemiBold),
-    Font(R.font.vazirmatn, FontWeight.Bold),
-    Font(R.font.vazirmatn, FontWeight.ExtraBold),
-    Font(R.font.vazirmatn, FontWeight.Black)
+    Font(R.font.vazirmatn, FontWeight.Bold)
 )
 
 val AppTypography = Typography(

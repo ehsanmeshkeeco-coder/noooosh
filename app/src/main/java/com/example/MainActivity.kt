@@ -273,7 +273,8 @@ fun MainAppScaffold(viewModel: MainViewModel) {
                         onStartTour = {
                             tourStepIndex = 0
                             showInteractiveTour = true
-                        }
+                        },
+                        activeTourStep = if (showInteractiveTour) tourStepIndex else null
                     )
                 }
 
@@ -321,7 +322,15 @@ fun MainAppScaffold(viewModel: MainViewModel) {
                     ProfileSettingsScreen(
                         viewModel = viewModel,
                         onNavigateToAuth = { navController.navigate(Screen.Auth.route) },
-                        onNavigateToOnboarding = { navController.navigate(Screen.Onboarding.route) }
+                        onNavigateToOnboarding = { navController.navigate(Screen.Onboarding.route) },
+                        onNavigateToCalculator = { navController.navigate(Screen.Calculator.route) }
+                    )
+                }
+
+                composable(Screen.Calculator.route) {
+                    com.example.presentation.screens.HydrationGoalCalculatorScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 

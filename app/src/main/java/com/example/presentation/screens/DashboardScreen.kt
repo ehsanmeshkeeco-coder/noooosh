@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -79,7 +81,8 @@ fun DashboardScreen(
     modifier: Modifier = Modifier,
     onProgressRingPositioned: ((Rect) -> Unit)? = null,
     onQuickAddPositioned: ((Rect) -> Unit)? = null,
-    onStartTour: (() -> Unit)? = null
+    onStartTour: (() -> Unit)? = null,
+    activeTourStep: Int? = null
 ) {
     val dashboardState by viewModel.dashboardState.collectAsState()
     val celebrationEvent by viewModel.celebrationEvent.collectAsState()
@@ -91,9 +94,18 @@ fun DashboardScreen(
     var showGamificationDialog by remember { mutableStateOf(false) }
 
     val state = dashboardState
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(activeTourStep) {
+        when (activeTourStep) {
+            0 -> listState.animateScrollToItem(0)
+            1 -> listState.animateScrollToItem(4)
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
@@ -460,6 +472,84 @@ fun DashboardScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Quick Beverages Row with Hydration Calculations
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ثبت سریع انواع نوشیدنی ☕",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "محاسبه ارزش آب‌رسانی",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val quickBeverages = listOf(
+                    Triple("tea", "چای", "🍵" to (200 to 0.85f)),
+                    Triple("coffee", "قهوه", "☕" to (150 to 0.70f)),
+                    Triple("herbal", "دمنوش", "🫖" to (200 to 0.90f)),
+                    Triple("milk", "شیر", "🥛" to (250 to 0.88f)),
+                    Triple("juice", "آبمیوه", "🧃" to (250 to 0.80f))
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    quickBeverages.forEach { (id, name, pair) ->
+                        val (emoji, calc) = pair
+                        val (vol, factor) = calc
+                        val pureWaterMl = (vol * factor).toInt()
+                        Surface(
+                            onClick = {
+                                viewModel.addWater(pureWaterMl, "beverage_$id")
+                                android.widget.Toast.makeText(
+                                    com.example.NooshApplication.instance,
+                                    "$emoji یک نوبت $name ثبت شد (معادل ${DateTimeUtils.toPersianDigits(pureWaterMl.toString())} میل آب خالص) ✓",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("btn_quick_beverage_$id")
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(text = emoji, fontSize = 20.sp)
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = name,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "+${DateTimeUtils.toPersianDigits(pureWaterMl.toString())}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NooshPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Today's Activity Log Heading
@@ -619,6 +709,19 @@ private fun IntakeTimelineItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val (emoji, sourceLabel) = when {
+                source.contains("tea") -> "🍵" to "چای (محاسبه درصد آب‌رسانی)"
+                source.contains("coffee") -> "☕" to "قهوه (محاسبه درصد آب‌رسانی)"
+                source.contains("herbal") -> "🫖" to "دمنوش گیاهی"
+                source.contains("milk") -> "🥛" to "شیر"
+                source.contains("juice") -> "🧃" to "آبمیوه طبیعی"
+                source == "notification" -> "🔔" to "از نوار اعلان"
+                source == "widget" -> "📱" to "از ویجت صفحه اصلی"
+                source == "app_custom" -> "💧" to "ثبت سفارشی"
+                source == "morning_wake_up" -> "☀️" to "لیوان آب اول صبح"
+                else -> "💧" to "آب خالص"
+            }
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -630,28 +733,17 @@ private fun IntakeTimelineItem(
                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.WaterDrop,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Text(text = emoji, fontSize = 18.sp)
                 }
 
                 Column {
                     Text(
-                        text = "+${DateTimeUtils.toPersianDigits(amountMl.toString())} میلی‌لیتر",
+                        text = "+${DateTimeUtils.toPersianDigits(amountMl.toString())} میلی‌لیتر آب خالص",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    val sourceLabel = when (source) {
-                        "notification" -> "از نوار اعلان"
-                        "widget" -> "از ویجت صفحه اصلی"
-                        "app_custom" -> "ثبت سفارشی"
-                        else -> "ثبت سریع برنامه"
-                    }
                     Text(
                         text = sourceLabel,
                         fontSize = 11.sp,

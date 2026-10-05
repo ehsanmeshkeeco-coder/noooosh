@@ -107,20 +107,20 @@ fun InteractiveTourOverlay(
     val steps = remember(ringBounds, quickAddBounds, bottomNavBounds) {
         listOf(
             TourStep(
-                title = "حلقه هوشمند پیشرفت آب",
-                description = "در این قسمت درصد مصرف آب روزانه، تعداد لیوان‌های خورده شده و یادآور بعدی را می‌بینید.",
+                title = "حلقه هوشمند پیشرفت",
+                description = "مشاهده درصد و میزان آب مصرفی روزانه و ساعت یادآوری بعدی.",
                 targetArea = TourTargetArea.WATER_RING,
                 targetRect = ringBounds
             ),
             TourStep(
-                title = "ثبت سریع و هوشمند آب",
-                description = "با لمس دکمه «+۱ لیوان» یا «ثبت مقدار»، آب مصرفی‌تان بلافاصله ذخیره می‌شود.",
+                title = "ثبت سریع آب",
+                description = "ثبت فوری یک لیوان آب یا وارد کردن مقدار سفارشی با یک لمس.",
                 targetArea = TourTargetArea.QUICK_ADD,
                 targetRect = quickAddBounds
             ),
             TourStep(
-                title = "همراه سلامت و نوار ناوبری",
-                description = "از این بخش می‌توانید به اتاق همراه سلامت، نمودارهای هفتگی، یادآورها و پروفایل دسترسی داشته باشید.",
+                title = "نوار دسترسی سریع",
+                description = "ورود به بخش همراه سلامت، نمودارها، یادآورها و تنظیمات.",
                 targetArea = TourTargetArea.BOTTOM_NAV,
                 targetRect = bottomNavBounds
             )
@@ -177,10 +177,10 @@ fun InteractiveTourOverlay(
                     bottom = screenHeightPx * 0.44f
                 )
                 TourTargetArea.QUICK_ADD -> quickAddBounds ?: currentStep.targetRect ?: Rect(
-                    left = screenWidthPx * 0.05f,
-                    top = screenHeightPx * 0.50f,
-                    right = screenWidthPx * 0.95f,
-                    bottom = screenHeightPx * 0.62f
+                    left = screenWidthPx * 0.04f,
+                    top = screenHeightPx * 0.60f,
+                    right = screenWidthPx * 0.96f,
+                    bottom = screenHeightPx * 0.72f
                 )
                 TourTargetArea.BOTTOM_NAV -> bottomNavBounds ?: currentStep.targetRect ?: Rect(
                     left = 0f,
@@ -284,12 +284,15 @@ fun InteractiveTourOverlay(
             val shouldFloatBelow = currentStep.targetArea == TourTargetArea.WATER_RING
             val pointerDirection = if (shouldFloatBelow) TooltipPointerDirection.UP else TooltipPointerDirection.DOWN
 
+            val maxAllowedY = (screenHeightPx - cardEstimatedHeight - with(density) { 20.dp.toPx() }).coerceAtLeast(0f)
+            val minAllowedY = with(density) { 20.dp.toPx() }
+
             val targetCardY = if (shouldFloatBelow) {
                 // Float below water progress ring
-                (rawTargetRect.bottom + cardGapPx).coerceAtMost(screenHeightPx - cardEstimatedHeight - with(density) { 16.dp.toPx() })
+                (rawTargetRect.bottom + cardGapPx).coerceIn(minAllowedY, maxAllowedY)
             } else {
                 // Float above Quick Add buttons or Bottom Nav
-                (rawTargetRect.top - cardEstimatedHeight - cardGapPx).coerceAtLeast(with(density) { 24.dp.toPx() })
+                (rawTargetRect.top - cardEstimatedHeight - cardGapPx).coerceIn(minAllowedY, maxAllowedY)
             }
 
             // Smoothly animate the card Y position as it travels across the screen

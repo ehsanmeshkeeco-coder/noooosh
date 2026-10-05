@@ -41,16 +41,12 @@ class WakeUpReceiver : BroadcastReceiver() {
                                 return@launch
                             }
 
-                            val isUserLoggedIn = app.clerkAuthManager.isAuthenticated &&
-                                app.clerkAuthManager.currentUser != null &&
-                                app.clerkAuthManager.currentUser?.isGuest != true
-
-                            if (!isUserLoggedIn) {
-                                Log.d(TAG, "User not logged in, suppressing wake-up notification.")
+                            val profile = app.userRepository.getUserProfile()
+                            if (!profile.reminderEnabled) {
+                                Log.d(TAG, "Reminders disabled in profile, suppressing wake-up prompt.")
                                 return@launch
                             }
 
-                            val profile = app.userRepository.getUserProfile()
                             val userName = profile.name.takeIf {
                                 it.isNotBlank() && it != "کاربر مهمان" && it != "کاربر نوش" && it != "کاربر گرامی"
                             } ?: "دوست من"

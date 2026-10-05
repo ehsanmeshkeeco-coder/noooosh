@@ -87,6 +87,13 @@ sealed class Screen(
         selectedIcon = Icons.AutoMirrored.Filled.ShowChart,
         unselectedIcon = Icons.AutoMirrored.Outlined.ShowChart
     )
+
+    object Calculator : Screen(
+        route = "calculator",
+        titleResId = com.example.R.string.calculator_title,
+        selectedIcon = Icons.Filled.Person,
+        unselectedIcon = Icons.Outlined.Person
+    )
 }
 
 val BottomNavScreens = listOf(

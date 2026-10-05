@@ -345,18 +345,28 @@ fun HydrationStreakCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Badges Flow Grid (Clean 4 columns per row)
-            FlowRow(
+            // Badges Grid (Strictly 4 columns per row)
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                maxItemsInEachRow = 4
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                badges.forEach { badge ->
-                    BadgeItemView(
-                        badge = badge,
-                        onClick = { selectedBadge = badge }
-                    )
+                badges.chunked(4).forEach { rowBadges ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowBadges.forEach { badge ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                BadgeItemView(
+                                    badge = badge,
+                                    onClick = { selectedBadge = badge }
+                                )
+                            }
+                        }
+                        repeat(4 - rowBadges.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
@@ -407,18 +417,19 @@ private fun BadgeItemView(
             }
         }
     } else {
-        if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else Color(0xFFF8FAFC)
+        if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else Color(0xFFF8FAFC)
     }
 
     Card(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
         border = BorderStroke(
             width = if (badge.isUnlocked) 1.5.dp else 1.dp,
-            color = if (badge.isUnlocked) tierColor.copy(alpha = 0.8f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            color = if (badge.isUnlocked) tierColor.copy(alpha = 0.85f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (badge.isUnlocked) 2.dp else 0.dp),
         modifier = Modifier
-            .width(68.dp)
+            .fillMaxWidth()
             .clickable(onClick = onClick)
             .testTag("badge_item_${badge.id}")
     ) {
@@ -430,24 +441,24 @@ private fun BadgeItemView(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
                     .background(
-                        if (badge.isUnlocked) tierColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant
+                        if (badge.isUnlocked) tierColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = badge.iconEmoji,
                     fontSize = 22.sp,
-                    modifier = Modifier.scale(if (badge.isUnlocked) 1f else 0.85f)
+                    modifier = Modifier.scale(if (badge.isUnlocked) 1.05f else 0.85f)
                 )
 
                 if (badge.isUnlocked) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .size(14.dp)
+                            .size(15.dp)
                             .clip(CircleShape)
                             .background(SuccessGreen),
                         contentAlignment = Alignment.Center
@@ -463,15 +474,15 @@ private fun BadgeItemView(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .size(14.dp)
+                            .size(15.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurfaceVariant),
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lock,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.surface,
+                            tint = Color.White,
                             modifier = Modifier.size(9.dp)
                         )
                     }
@@ -488,7 +499,6 @@ private fun BadgeItemView(
                 textAlign = TextAlign.Center,
                 maxLines = 1
             )
-
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(

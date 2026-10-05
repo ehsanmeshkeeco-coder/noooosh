@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CameraAlt
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
@@ -39,8 +41,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -84,6 +88,7 @@ fun ProfileSettingsScreen(
     viewModel: MainViewModel,
     onNavigateToAuth: () -> Unit,
     onNavigateToOnboarding: () -> Unit = {},
+    onNavigateToCalculator: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -94,7 +99,9 @@ fun ProfileSettingsScreen(
     val profile = dashboardState?.profile
     var currentGoal by remember(profile) { mutableIntStateOf(profile?.dailyWaterGoalMl ?: 2000) }
     var graceDayEnabled by remember(profile) { mutableStateOf(profile?.graceDayEnabled ?: true) }
-    var showCalculatorDialog by remember { mutableStateOf(false) }
+    var showEditNameDialog by remember { mutableStateOf(false) }
+    var editedNameInput by remember(profile) { mutableStateOf(profile?.name ?: "") }
+    var editedUsernameInput by remember(profile) { mutableStateOf(profile?.username ?: "") }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -208,7 +215,15 @@ fun ProfileSettingsScreen(
 
                             Spacer(modifier = Modifier.width(12.dp))
 
-                            Column {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        editedNameInput = profile?.name ?: ""
+                                        editedUsernameInput = profile?.username ?: ""
+                                        showEditNameDialog = true
+                                    }
+                            ) {
                                 val userName = when (val a = authState) {
                                     is AuthState.Authenticated -> a.user.firstName
                                     else -> profile?.name ?: "کاربر گرامی"
@@ -217,12 +232,28 @@ fun ProfileSettingsScreen(
                                     is AuthState.Authenticated -> a.user.email
                                     else -> profile?.email ?: "noosh@user.app"
                                 }
-                                Text(
-                                    text = userName,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                val userHandle = profile?.username?.takeIf { it.isNotBlank() }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = userName,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "✏️",
+                                        fontSize = 11.sp
+                                    )
+                                }
+                                if (userHandle != null) {
+                                    Text(
+                                        text = "@$userHandle",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = NooshPrimary
+                                    )
+                                }
                                 Text(
                                     text = userEmail,
                                     fontSize = 12.sp,
@@ -282,23 +313,61 @@ fun ProfileSettingsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // RTL Slider: Fills from Right to Left
-                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                            Slider(
-                                value = currentGoal.toFloat(),
-                                onValueChange = {
-                                    currentGoal = (it / 250).toInt() * 250
-                                    viewModel.updateDailyGoal(currentGoal)
+                        // Goal Slider: Fills towards the right with quick - / + buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    if (currentGoal > 1000) {
+                                        currentGoal -= 250
+                                        viewModel.updateDailyGoal(currentGoal)
+                                    }
                                 },
-                                valueRange = 1000f..4000f,
-                                steps = 11,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = NooshPrimary,
-                                    activeTrackColor = NooshPrimary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "کاهش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                            }
+
+                            Box(modifier = Modifier.weight(1f)) {
+                                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                    Slider(
+                                        value = currentGoal.toFloat(),
+                                        onValueChange = {
+                                            currentGoal = (it / 250).toInt() * 250
+                                            viewModel.updateDailyGoal(currentGoal)
+                                        },
+                                        valueRange = 1000f..4000f,
+                                        steps = 11,
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = NooshPrimary,
+                                            activeTrackColor = NooshPrimary,
+                                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    if (currentGoal < 4000) {
+                                        currentGoal += 250
+                                        viewModel.updateDailyGoal(currentGoal)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "افزایش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -329,7 +398,7 @@ fun ProfileSettingsScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         OutlinedButton(
-                            onClick = { showCalculatorDialog = true },
+                            onClick = onNavigateToCalculator,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -418,41 +487,42 @@ fun ProfileSettingsScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.weight(1f).padding(end = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFEF3C7)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFFEF3C7)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Favorite,
-                                        contentDescription = null,
-                                        tint = Color(0xFFD97706),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "روز استراحت زنجیره (امان‌نامه)",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "جلوگیری از قطع شدن زنجیره روزانه در صورت فراموشی موقت",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    text = "روز استراحت زنجیره (امان‌نامه)",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "حفظ زنجیره در صورت فراموشی یک روز",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
 
                             Switch(
@@ -514,32 +584,78 @@ fun ProfileSettingsScreen(
         }
     }
 
-    if (showCalculatorDialog) {
-        HydrationGoalCalculatorDialog(
-            initialWeightKg = profile?.weightKg ?: 70f,
-            initialActivityLevel = profile?.activityLevel ?: "moderate",
-            initialClimate = profile?.climate ?: "temperate",
-            onApply = { targetGoalMl, weightKg, activityLevel, climate ->
-                currentGoal = targetGoalMl
-                viewModel.updateDailyGoal(targetGoalMl)
-                profile?.let {
-                    viewModel.updateProfile(
-                        it.copy(
-                            dailyWaterGoalMl = targetGoalMl,
-                            weightKg = weightKg,
-                            activityLevel = activityLevel,
-                            climate = climate
-                        )
+    // Edit User Name & Username Dialog
+    if (showEditNameDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showEditNameDialog = false },
+            title = {
+                Text(
+                    text = "ویرایش مشخصات کاربری 👤",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "نام نمایشی شما در برنامه و یادآورها:",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = editedNameInput,
+                        onValueChange = { editedNameInput = it },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "شناسه کاربری (User ID):",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = editedUsernameInput,
+                        onValueChange = { editedUsernameInput = it },
+                        placeholder = { Text("مثال: noosh_user") },
+                        prefix = { Text("@") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
-                showCalculatorDialog = false
-                Toast.makeText(
-                    context,
-                    "هدف مصرف روزانه به ${DateTimeUtils.toPersianDigits(targetGoalMl.toString())} میلی‌لیتر تنظیم شد!",
-                    Toast.LENGTH_LONG
-                ).show()
             },
-            onDismiss = { showCalculatorDialog = false }
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmedName = editedNameInput.trim()
+                        val trimmedUsername = editedUsernameInput.trim().removePrefix("@")
+                        if (trimmedName.isNotBlank()) {
+                            profile?.let {
+                                viewModel.updateProfile(
+                                    it.copy(
+                                        name = trimmedName,
+                                        username = trimmedUsername
+                                    )
+                                )
+                            }
+                            Toast.makeText(context, "اطلاعات حساب کاربری به‌روزرسانی شد ✓", Toast.LENGTH_SHORT).show()
+                        }
+                        showEditNameDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary)
+                ) {
+                    Text("ذخیره تغییرات", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showEditNameDialog = false }) {
+                    Text("انصراف")
+                }
+            }
         )
     }
 }

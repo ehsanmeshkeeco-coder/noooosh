@@ -202,8 +202,21 @@ class WaterRepositoryImpl(
             var totalMl = 0
             val profile = userProfileDao.getUserProfile(userId)
             val defaultGoal = profile?.dailyWaterGoalMl ?: 2000
+            val regMillis = profile?.createdAt ?: System.currentTimeMillis()
+            val regDate = java.time.Instant.ofEpochMilli(regMillis)
+                .atZone(DateTimeUtils.zoneId)
+                .toLocalDate()
+            val earliestSummaryDate = summaries.minByOrNull { it.date }?.date?.let {
+                try { LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE) } catch (e: Exception) { null }
+            }
+            val effectiveStartDate = if (earliestSummaryDate != null && earliestSummaryDate.isBefore(regDate)) {
+                earliestSummaryDate
+            } else {
+                regDate
+            }
+            val daysSinceReg = java.time.temporal.ChronoUnit.DAYS.between(effectiveStartDate, today).toInt().coerceIn(0, 6)
 
-            for (i in 6 downTo 0) {
+            for (i in daysSinceReg downTo 0) {
                 val d = today.minusDays(i.toLong())
                 val dStr = d.format(DateTimeFormatter.ISO_LOCAL_DATE)
                 val sum = summaryMap[dStr]
@@ -222,7 +235,7 @@ class WaterRepositoryImpl(
             }
 
             val avg = if (days.isNotEmpty()) totalMl / days.size else 0
-            val weeklyGoal = defaultGoal * 7
+            val weeklyGoal = defaultGoal * days.size
             val completionRate = if (weeklyGoal > 0) ((totalMl.toFloat() / weeklyGoal) * 100).toInt() else 0
             
             WeeklyReport(
@@ -239,14 +252,25 @@ class WaterRepositoryImpl(
         val today = LocalDate.now(DateTimeUtils.zoneId)
         val profile = userProfileDao.getUserProfile(userId)
         val goalMl = profile?.dailyWaterGoalMl ?: 2000
-
-        // Get past 30 days
-        val startDate = today.minusDays(29)
-        val startStr = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val regMillis = profile?.createdAt ?: System.currentTimeMillis()
+        val regDate = java.time.Instant.ofEpochMilli(regMillis)
+            .atZone(DateTimeUtils.zoneId)
+            .toLocalDate()
+        val queryStartDate = today.minusDays(29)
+        val startStr = queryStartDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
         val endStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
         val summaries = dailySummaryDao.getSummariesBetween(userId, startStr, endStr)
         val summaryMap = summaries.associateBy { it.date }
+        val earliestSummaryDate = summaries.minByOrNull { it.date }?.date?.let {
+            try { LocalDate.parse(it, DateTimeFormatter.ISO_LOCAL_DATE) } catch (e: Exception) { null }
+        }
+        val effectiveStartDate = if (earliestSummaryDate != null && earliestSummaryDate.isBefore(regDate)) {
+            earliestSummaryDate
+        } else {
+            regDate
+        }
+        val daysSinceReg = java.time.temporal.ChronoUnit.DAYS.between(effectiveStartDate, today).toInt().coerceIn(0, 29)
 
         val dailyIntakes = mutableListOf<Int>()
         var totalConsumed = 0
@@ -257,7 +281,7 @@ class WaterRepositoryImpl(
         var completedCount = 0
         var missedCount = 0
 
-        for (i in 29 downTo 0) {
+        for (i in daysSinceReg downTo 0) {
             val d = today.minusDays(i.toLong())
             val dStr = d.format(DateTimeFormatter.ISO_LOCAL_DATE)
             val sum = summaryMap[dStr]

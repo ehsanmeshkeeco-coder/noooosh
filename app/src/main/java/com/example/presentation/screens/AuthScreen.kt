@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Lock
@@ -83,6 +84,7 @@ fun AuthScreen(
     }
 
     var nameInput by remember { mutableStateOf("") }
+    var usernameInput by remember { mutableStateOf("") }
     var emailInput by remember { mutableStateOf("") }
     var passwordInput by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -319,6 +321,34 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         OutlinedTextField(
+                            value = usernameInput,
+                            onValueChange = {
+                                usernameInput = it
+                                errorMessage = null
+                            },
+                            label = { Text("شناسه کاربری (اختیاری)") },
+                            placeholder = { Text("مثال: noosh_user") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Badge,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("input_auth_username"),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            ),
+                            singleLine = true
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
                             value = emailInput,
                             onValueChange = {
                                 emailInput = it
@@ -411,10 +441,12 @@ fun AuthScreen(
 
                                 errorMessage = null
                                 isSubmitting = true
+                                val chosenName = name.ifBlank { usernameInput.trim().ifBlank { email.substringBefore("@") } }
                                 viewModel.signInWithEmail(
                                     email = email,
-                                    name = name.ifBlank { email.substringBefore("@") },
-                                    password = pwd.ifBlank { null }
+                                    name = chosenName,
+                                    password = pwd.ifBlank { null },
+                                    username = usernameInput.trim().ifBlank { null }
                                 ) { isSuccess, message ->
                                     isSubmitting = false
                                     if (isSuccess) {

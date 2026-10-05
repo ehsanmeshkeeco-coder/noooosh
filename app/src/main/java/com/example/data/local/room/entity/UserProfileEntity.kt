@@ -8,6 +8,7 @@ import com.example.domain.model.UserProfile
 data class UserProfileEntity(
     @PrimaryKey val id: String = "default_user",
     val clerkUserId: String = com.clerk.android.Clerk.getUser()?.id ?: "",
+    val username: String = "",
     val name: String = "کاربر گرامی",
     val email: String = "user@example.com",
     val profileImageUrl: String? = null,
@@ -36,6 +37,7 @@ data class UserProfileEntity(
     fun toDomain(): UserProfile = UserProfile(
         id = id,
         clerkUserId = clerkUserId,
+        username = username,
         name = name,
         email = email,
         profileImageUrl = profileImageUrl,
@@ -66,6 +68,7 @@ data class UserProfileEntity(
         fun fromDomain(domain: UserProfile): UserProfileEntity = UserProfileEntity(
             id = domain.id,
             clerkUserId = domain.clerkUserId,
+            username = domain.username,
             name = domain.name,
             email = domain.email,
             profileImageUrl = domain.profileImageUrl,

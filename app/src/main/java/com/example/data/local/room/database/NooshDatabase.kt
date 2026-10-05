@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
         SyncOutboxEntity::class,
         GamificationBadgeEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class NooshDatabase : RoomDatabase() {

@@ -1,3 +1,20 @@
+// Suppress harmless IntelliJ KSP disposal race condition on AWT EventQueue in headless Gradle runs
+try {
+    val existingHandler = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+        val isAwtKspDisposalRace = thread.name.startsWith("AWT-EventQueue") &&
+            throwable is NullPointerException &&
+            throwable.stackTrace.any { element ->
+                element.className.contains("BinaryFileTypeDecompilers") || 
+                element.className.contains("FileDocumentManager") ||
+                element.className.contains("ksp.com.intellij")
+            }
+        if (!isAwtKspDisposalRace) {
+            existingHandler?.uncaughtException(thread, throwable) ?: throwable.printStackTrace()
+        }
+    }
+} catch (_: Throwable) {}
+
 pluginManagement {
   repositories {
     google {

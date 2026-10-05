@@ -178,28 +178,21 @@ class NooshApplication : Application() {
 
         applicationScope.launch(Dispatchers.IO) {
             try {
-                val isUserLoggedIn = clerkAuthManager.isAuthenticated &&
-                    clerkAuthManager.currentUser != null &&
-                    clerkAuthManager.currentUser?.isGuest != true
-
-                if (isUserLoggedIn) {
-                    val profile = userRepository.getUserProfile()
-                    if (profile.reminderEnabled) {
-                        if (com.example.alarms.WakeUpManager.isWakeUpConfirmedForToday(this@NooshApplication)) {
-                            reminderScheduler.scheduleNextPendingReminder()
-                            com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
-                                this@NooshApplication,
-                                profile.reminderIntervalMinutes.coerceAtLeast(15)
-                            )
-                        } else {
-                            // User has not declared wake-up yet today: suppress regular reminders and start hourly prompt
-                            reminderScheduler.cancelAllAlarms()
-                            com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(this@NooshApplication)
-                            com.example.alarms.WakeUpManager.scheduleHourlyWakeUpPrompt(this@NooshApplication)
-                        }
+                val profile = userRepository.getUserProfile()
+                if (profile.reminderEnabled) {
+                    if (com.example.alarms.WakeUpManager.isWakeUpConfirmedForToday(this@NooshApplication)) {
+                        reminderScheduler.scheduleNextPendingReminder()
+                        com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
+                            this@NooshApplication,
+                            profile.reminderIntervalMinutes.coerceAtLeast(15)
+                        )
+                    } else {
+                        // User has not declared wake-up yet today: suppress regular reminders and start hourly prompt
+                        reminderScheduler.cancelAllAlarms()
+                        com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(this@NooshApplication)
+                        com.example.alarms.WakeUpManager.scheduleHourlyWakeUpPrompt(this@NooshApplication)
                     }
                 } else {
-                    // Critical: unauthenticated users must NOT receive any notifications
                     reminderScheduler.cancelAllAlarms()
                     com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(this@NooshApplication)
                 }
