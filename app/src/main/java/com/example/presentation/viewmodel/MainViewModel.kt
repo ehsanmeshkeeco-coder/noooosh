@@ -437,6 +437,14 @@ class MainViewModel(
         }
     }
 
+    suspend fun checkEmailAvailable(email: String): Boolean = withContext(Dispatchers.IO) {
+        !userRepository.isEmailRegistered(email.trim().lowercase())
+    }
+
+    suspend fun checkUsernameAvailable(username: String): Boolean = withContext(Dispatchers.IO) {
+        !userRepository.isUsernameTaken(username.trim().lowercase().removePrefix("@"))
+    }
+
     fun signUpUser(
         email: String,
         name: String,
@@ -445,8 +453,8 @@ class MainViewModel(
         onResult: (isSuccess: Boolean, message: String) -> Unit
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            val cleanEmail = email.trim()
-            val cleanUsername = username.trim().removePrefix("@")
+            val cleanEmail = email.trim().lowercase()
+            val cleanUsername = username.trim().lowercase().removePrefix("@")
             val cleanName = name.trim().ifBlank { cleanUsername.ifBlank { cleanEmail.substringBefore("@") } }
 
             // 1. Validate Uniqueness Locally
@@ -476,9 +484,11 @@ class MainViewModel(
                                 name = result.user.firstName.ifBlank { cleanName },
                                 username = cleanUsername,
                                 email = result.user.email,
-                                clerkUserId = result.user.id
+                                clerkUserId = result.user.id,
+                                onboardingCompleted = false
                             )
                             userRepository.updateProfile(updated)
+                            _onboardingCompletedInSession.value = false
                             fcmTokenManager?.onUserLogin(updated.id)
                             if (updated.reminderEnabled) {
                                 reminderScheduler.scheduleNextPendingReminder()
@@ -502,9 +512,11 @@ class MainViewModel(
                                 name = cleanName,
                                 username = cleanUsername,
                                 email = cleanEmail,
-                                clerkUserId = result.signUpId
+                                clerkUserId = result.signUpId,
+                                onboardingCompleted = false
                             )
                             userRepository.updateProfile(updated)
+                            _onboardingCompletedInSession.value = false
                             fcmTokenManager?.onUserLogin(updated.id)
                         }
                         onResult(true, "ثبت‌نام با موفقیت انجام شد ✓")
@@ -545,9 +557,11 @@ class MainViewModel(
                                 name = result.user.firstName.ifBlank { registeredAcc?.name ?: profile.name },
                                 username = registeredAcc?.username ?: profile.username,
                                 email = result.user.email,
-                                clerkUserId = result.user.id
+                                clerkUserId = result.user.id,
+                                onboardingCompleted = true
                             )
                             userRepository.updateProfile(updated)
+                            _onboardingCompletedInSession.value = true
                             fcmTokenManager?.onUserLogin(updated.id)
                             // Reconcile remote server data to restore user history
                             try {
@@ -625,9 +639,13 @@ class MainViewModel(
                 Log.e("MainViewModel", "Pre-logout server sync failed: ${e.message}")
             }
 
-            // 2. Wipe client-stored database tables
+            // 2. Wipe client-stored database tables while preserving registered accounts for uniqueness
             try {
+                val registeredAccounts = database?.registeredAccountDao()?.getAllAccounts() ?: emptyList()
                 database?.clearAllTables()
+                registeredAccounts.forEach { acc ->
+                    database?.registeredAccountDao()?.insertAccount(acc)
+                }
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Database clearAllTables failed: ${e.message}")
             }

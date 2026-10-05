@@ -352,49 +352,50 @@ private fun StepOneNameAndPhoto(
 
             // Compact Avatar Circle with Photo Picker
             Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-                    .clickable { onPickPhoto() },
+                modifier = Modifier.size(92.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (imageUri != null) {
-                    AsyncImage(
-                        model = imageUri,
-                        contentDescription = "عکس پروفایل انتخاب شده",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else if (!existingImageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = existingImageUrl,
-                        contentDescription = "عکس پروفایل",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
-                            contentDescription = "انتخاب تصویر پروفایل",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
+                Box(
+                    modifier = Modifier
+                        .size(86.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
+                        .clickable { onPickPhoto() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageUri != null) {
+                        AsyncImage(
+                            model = imageUri,
+                            contentDescription = "عکس پروفایل انتخاب شده",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "افزودن عکس",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
+                    } else if (!existingImageUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = existingImageUrl,
+                            contentDescription = "عکس پروفایل",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddAPhoto,
+                                contentDescription = "انتخاب تصویر پروفایل",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "افزودن عکس",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 
@@ -402,9 +403,11 @@ private fun StepOneNameAndPhoto(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .size(24.dp)
+                        .size(26.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
+                        .background(MaterialTheme.colorScheme.primary)
+                        .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                        .clickable { onPickPhoto() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

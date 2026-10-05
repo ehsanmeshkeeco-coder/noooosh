@@ -74,6 +74,20 @@ sealed class Screen(
         unselectedIcon = Icons.Outlined.Person
     )
 
+    object Login : Screen(
+        route = "login",
+        titleResId = com.example.R.string.clerk_account_title,
+        selectedIcon = Icons.Filled.Person,
+        unselectedIcon = Icons.Outlined.Person
+    )
+
+    object Register : Screen(
+        route = "register",
+        titleResId = com.example.R.string.clerk_account_title,
+        selectedIcon = Icons.Filled.Person,
+        unselectedIcon = Icons.Outlined.Person
+    )
+
     object Onboarding : Screen(
         route = "onboarding",
         titleResId = com.example.R.string.onboarding_title,

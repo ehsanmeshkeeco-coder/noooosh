@@ -48,7 +48,8 @@ import com.example.presentation.components.InteractiveTourOverlay
 import com.example.presentation.components.MorningWakeUpDialog
 import com.example.presentation.navigation.BottomNavScreens
 import com.example.presentation.navigation.Screen
-import com.example.presentation.screens.AuthScreen
+import com.example.presentation.screens.LoginScreen
+import com.example.presentation.screens.RegisterScreen
 import com.example.presentation.screens.DashboardScreen
 import com.example.presentation.screens.HealthCompanionScreen
 import com.example.presentation.screens.MonthlyReportScreen
@@ -175,7 +176,10 @@ fun MainAppScaffold(viewModel: MainViewModel) {
     val onboardingCompletedInSession by viewModel.onboardingCompletedInSession.collectAsState()
     val isAlarmRinging by viewModel.isAlarmRinging.collectAsState()
 
-    val showBottomBar = currentRoute != Screen.Auth.route && currentRoute != Screen.Onboarding.route
+    val showBottomBar = currentRoute != Screen.Auth.route &&
+        currentRoute != Screen.Login.route &&
+        currentRoute != Screen.Register.route &&
+        currentRoute != Screen.Onboarding.route
 
     // Interactive Tour Overlay State
     var showInteractiveTour by remember { mutableStateOf(false) }
@@ -184,10 +188,14 @@ fun MainAppScaffold(viewModel: MainViewModel) {
     var quickAddBounds by remember { mutableStateOf<Rect?>(null) }
     var bottomNavBounds by remember { mutableStateOf<Rect?>(null) }
 
-    // If unauthenticated at startup, route to Auth
+    // If unauthenticated at startup, route to Login
     LaunchedEffect(authState) {
-        if (authState is com.example.data.remote.clerk.AuthState.Unauthenticated && currentRoute != Screen.Auth.route) {
-            navController.navigate(Screen.Auth.route) {
+        if (authState is com.example.data.remote.clerk.AuthState.Unauthenticated &&
+            currentRoute != Screen.Login.route &&
+            currentRoute != Screen.Register.route &&
+            currentRoute != Screen.Auth.route
+        ) {
+            navController.navigate(Screen.Login.route) {
                 popUpTo(0) { inclusive = true }
             }
         }
@@ -201,6 +209,8 @@ fun MainAppScaffold(viewModel: MainViewModel) {
             authState is com.example.data.remote.clerk.AuthState.Authenticated &&
             profile != null &&
             currentRoute != Screen.Auth.route &&
+            currentRoute != Screen.Login.route &&
+            currentRoute != Screen.Register.route &&
             currentRoute != Screen.Onboarding.route
         ) {
             navController.navigate(Screen.Onboarding.route) {
@@ -259,7 +269,7 @@ fun MainAppScaffold(viewModel: MainViewModel) {
             }
         ) { innerPadding ->
             val isAuthenticated = authState is com.example.data.remote.clerk.AuthState.Authenticated
-            val startDest = if (isAuthenticated) Screen.Dashboard.route else Screen.Auth.route
+            val startDest = if (isAuthenticated) Screen.Dashboard.route else Screen.Login.route
 
             NavHost(
                 navController = navController,
@@ -322,7 +332,11 @@ fun MainAppScaffold(viewModel: MainViewModel) {
                 composable(Screen.Profile.route) {
                     ProfileSettingsScreen(
                         viewModel = viewModel,
-                        onNavigateToAuth = { navController.navigate(Screen.Auth.route) },
+                        onNavigateToAuth = {
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
                         onNavigateToOnboarding = { navController.navigate(Screen.Onboarding.route) },
                         onNavigateToCalculator = { navController.navigate(Screen.Calculator.route) }
                     )
@@ -335,9 +349,9 @@ fun MainAppScaffold(viewModel: MainViewModel) {
                     )
                 }
 
-                composable(Screen.Auth.route) {
+                composable(Screen.Login.route) {
                     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-                    AuthScreen(
+                    com.example.presentation.screens.LoginScreen(
                         viewModel = viewModel,
                         onNavigateBack = {
                             if (authState is com.example.data.remote.clerk.AuthState.Authenticated) {
@@ -346,12 +360,54 @@ fun MainAppScaffold(viewModel: MainViewModel) {
                                 activity?.finish()
                             }
                         },
-                        onAuthSuccess = {
-                            // After login, check if onboarding is needed
-                            val profile = dashboardState?.profile
-                            val isCompleted = viewModel.onboardingCompletedInSession.value || (profile?.onboardingCompleted == true)
-                            val nextRoute = if (!isCompleted) Screen.Onboarding.route else Screen.Dashboard.route
-                            navController.navigate(nextRoute) {
+                        onNavigateToRegister = {
+                            navController.navigate(Screen.Register.route)
+                        },
+                        onLoginSuccess = {
+                            // When user logs in, their data already exists: proceed directly to Dashboard!
+                            navController.navigate(Screen.Dashboard.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+
+                composable(Screen.Register.route) {
+                    com.example.presentation.screens.RegisterScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = {
+                            navController.popBackStack()
+                        },
+                        onNavigateToLogin = {
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(Screen.Register.route) { inclusive = true }
+                            }
+                        },
+                        onRegisterSuccess = {
+                            // Brand new registered user: MUST perform onboarding to calculate algorithms and setup profile!
+                            navController.navigate(Screen.Onboarding.route) {
+                                popUpTo(Screen.Register.route) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+
+                composable(Screen.Auth.route) {
+                    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+                    com.example.presentation.screens.LoginScreen(
+                        viewModel = viewModel,
+                        onNavigateBack = {
+                            if (authState is com.example.data.remote.clerk.AuthState.Authenticated) {
+                                navController.popBackStack()
+                            } else {
+                                activity?.finish()
+                            }
+                        },
+                        onNavigateToRegister = {
+                            navController.navigate(Screen.Register.route)
+                        },
+                        onLoginSuccess = {
+                            navController.navigate(Screen.Dashboard.route) {
                                 popUpTo(Screen.Auth.route) { inclusive = true }
                             }
                         }

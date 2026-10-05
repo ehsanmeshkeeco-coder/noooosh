@@ -6,6 +6,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -166,116 +167,114 @@ fun ProfileSettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(68.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Box(
-                                modifier = Modifier.size(64.dp),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
+                                    .clickable {
+                                        photoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(60.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
-                                        .clickable {
-                                            photoPickerLauncher.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (!profile?.profileImageUrl.isNullOrBlank()) {
-                                        AsyncImage(
-                                            model = profile?.profileImageUrl,
-                                            contentDescription = "تصویر پروفایل",
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(CircleShape),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Person,
-                                            contentDescription = "پروفایل",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                    }
-                                }
-
-                                // Camera overlay icon
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                        .clickable {
-                                            photoPickerLauncher.launch(
-                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                            )
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
+                                if (!profile?.profileImageUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = profile?.profileImageUrl,
+                                        contentDescription = "تصویر پروفایل",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
                                     Icon(
-                                        imageVector = Icons.Default.CameraAlt,
-                                        contentDescription = "تغییر تصویر",
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(11.dp)
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "پروفایل",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(36.dp)
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(
+                            // Camera overlay icon
+                            Box(
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .align(Alignment.BottomEnd)
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
                                     .clickable {
-                                        editedNameInput = profile?.name ?: ""
-                                        editedUsernameInput = profile?.username ?: ""
-                                        showEditNameDialog = true
-                                    }
+                                        photoPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
-                                val userName = when (val a = authState) {
-                                    is AuthState.Authenticated -> a.user.firstName
-                                    else -> profile?.name ?: "کاربر گرامی"
-                                }
-                                val userEmail = when (val a = authState) {
-                                    is AuthState.Authenticated -> a.user.email
-                                    else -> profile?.email ?: "noosh@user.app"
-                                }
-                                val userHandle = profile?.username?.takeIf { it.isNotBlank() }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = userName,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "✏️",
-                                        fontSize = 11.sp
-                                    )
-                                }
-                                if (userHandle != null) {
-                                    Text(
-                                        text = "@$userHandle",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = NooshPrimary
-                                    )
-                                }
-                                Text(
-                                    text = userEmail,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "تغییر تصویر",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    editedNameInput = profile?.name ?: ""
+                                    editedUsernameInput = profile?.username ?: ""
+                                    showEditNameDialog = true
+                                }
+                        ) {
+                            val userName = when (val a = authState) {
+                                is AuthState.Authenticated -> a.user.firstName
+                                else -> profile?.name ?: "کاربر گرامی"
+                            }
+                            val userEmail = when (val a = authState) {
+                                is AuthState.Authenticated -> a.user.email
+                                else -> profile?.email ?: "noosh@user.app"
+                            }
+                            val userHandle = profile?.username?.takeIf { it.isNotBlank() }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = userName,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "✏️",
+                                    fontSize = 11.sp
+                                )
+                            }
+                            if (userHandle != null) {
+                                Text(
+                                    text = "@$userHandle",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = NooshPrimary
+                                )
+                            }
+                            Text(
+                                text = userEmail,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         OutlinedButton(
                             onClick = onNavigateToAuth,
@@ -328,7 +327,7 @@ fun ProfileSettingsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Goal Slider: - (decrease) on left, slider in middle, + (increase) on right
+                        // Goal Slider: Swapped +/- buttons per user request
                         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -337,8 +336,8 @@ fun ProfileSettingsScreen(
                             ) {
                                 IconButton(
                                     onClick = {
-                                        if (currentGoal > 1000) {
-                                            currentGoal -= 250
+                                        if (currentGoal < 4000) {
+                                            currentGoal += 250
                                             viewModel.updateDailyGoal(currentGoal)
                                         }
                                     },
@@ -347,7 +346,7 @@ fun ProfileSettingsScreen(
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.surfaceVariant)
                                 ) {
-                                    Icon(Icons.Default.Remove, contentDescription = "کاهش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Add, contentDescription = "افزایش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
                                 }
 
                                 Box(modifier = Modifier.weight(1f)) {
@@ -370,8 +369,8 @@ fun ProfileSettingsScreen(
 
                                 IconButton(
                                     onClick = {
-                                        if (currentGoal < 4000) {
-                                            currentGoal += 250
+                                        if (currentGoal > 1000) {
+                                            currentGoal -= 250
                                             viewModel.updateDailyGoal(currentGoal)
                                         }
                                     },
@@ -380,7 +379,7 @@ fun ProfileSettingsScreen(
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.surfaceVariant)
                                 ) {
-                                    Icon(Icons.Default.Add, contentDescription = "افزایش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Remove, contentDescription = "کاهش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
