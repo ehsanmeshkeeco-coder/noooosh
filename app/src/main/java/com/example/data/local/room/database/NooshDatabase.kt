@@ -9,6 +9,7 @@ import com.example.data.local.room.dao.DailyWaterSummaryDao
 import com.example.data.local.room.dao.GamificationDao
 import com.example.data.local.room.dao.HealthAlertEventDao
 import com.example.data.local.room.dao.HealthCompanionDao
+import com.example.data.local.room.dao.RegisteredAccountDao
 import com.example.data.local.room.dao.ReminderDao
 import com.example.data.local.room.dao.SyncOutboxDao
 import com.example.data.local.room.dao.UserProfileDao
@@ -17,6 +18,7 @@ import com.example.data.local.room.entity.DailyWaterSummaryEntity
 import com.example.data.local.room.entity.GamificationBadgeEntity
 import com.example.data.local.room.entity.HealthAlertEventEntity
 import com.example.data.local.room.entity.HealthCompanionEntity
+import com.example.data.local.room.entity.RegisteredAccountEntity
 import com.example.data.local.room.entity.ReminderEntity
 import com.example.data.local.room.entity.SyncOutboxEntity
 import com.example.data.local.room.entity.UserProfileEntity
@@ -35,9 +37,10 @@ import kotlinx.coroutines.launch
         HealthAlertEventEntity::class,
         HealthCompanionEntity::class,
         SyncOutboxEntity::class,
-        GamificationBadgeEntity::class
+        GamificationBadgeEntity::class,
+        RegisteredAccountEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class NooshDatabase : RoomDatabase() {
@@ -49,6 +52,7 @@ abstract class NooshDatabase : RoomDatabase() {
     abstract fun healthCompanionDao(): HealthCompanionDao
     abstract fun syncOutboxDao(): SyncOutboxDao
     abstract fun gamificationDao(): GamificationDao
+    abstract fun registeredAccountDao(): RegisteredAccountDao
 
     companion object {
         @Volatile

@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
@@ -38,6 +39,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -68,6 +70,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -102,6 +105,8 @@ fun ProfileSettingsScreen(
     var showEditNameDialog by remember { mutableStateOf(false) }
     var editedNameInput by remember(profile) { mutableStateOf(profile?.name ?: "") }
     var editedUsernameInput by remember(profile) { mutableStateOf(profile?.username ?: "") }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var isLoggingOut by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -166,49 +171,59 @@ fun ProfileSettingsScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
-                                    .clickable {
-                                        photoPickerLauncher.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    },
+                                modifier = Modifier.size(64.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (!profile?.profileImageUrl.isNullOrBlank()) {
-                                    AsyncImage(
-                                        model = profile?.profileImageUrl,
-                                        contentDescription = "تصویر پروفایل",
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(CircleShape),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = "پروفایل",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(30.dp)
-                                    )
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
+                                        .clickable {
+                                            photoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (!profile?.profileImageUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = profile?.profileImageUrl,
+                                            contentDescription = "تصویر پروفایل",
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "پروفایل",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
                                 }
 
                                 // Camera overlay icon
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
-                                        .size(18.dp)
+                                        .size(20.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
+                                        .background(MaterialTheme.colorScheme.primary)
+                                        .clickable {
+                                            photoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CameraAlt,
                                         contentDescription = "تغییر تصویر",
                                         tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(10.dp)
+                                        modifier = Modifier.size(11.dp)
                                     )
                                 }
                             }
@@ -313,29 +328,29 @@ fun ProfileSettingsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Goal Slider: Fills towards the right with quick - / + buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    if (currentGoal > 1000) {
-                                        currentGoal -= 250
-                                        viewModel.updateDailyGoal(currentGoal)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                        // Goal Slider: - (decrease) on left, slider in middle, + (increase) on right
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Default.Remove, contentDescription = "کاهش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
-                            }
+                                IconButton(
+                                    onClick = {
+                                        if (currentGoal > 1000) {
+                                            currentGoal -= 250
+                                            viewModel.updateDailyGoal(currentGoal)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Icon(Icons.Default.Remove, contentDescription = "کاهش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                                }
 
-                            Box(modifier = Modifier.weight(1f)) {
-                                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                Box(modifier = Modifier.weight(1f)) {
                                     Slider(
                                         value = currentGoal.toFloat(),
                                         onValueChange = {
@@ -352,21 +367,21 @@ fun ProfileSettingsScreen(
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }
-                            }
 
-                            IconButton(
-                                onClick = {
-                                    if (currentGoal < 4000) {
-                                        currentGoal += 250
-                                        viewModel.updateDailyGoal(currentGoal)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "افزایش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                                IconButton(
+                                    onClick = {
+                                        if (currentGoal < 4000) {
+                                            currentGoal += 250
+                                            viewModel.updateDailyGoal(currentGoal)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = "افزایش", tint = NooshPrimary, modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
 
@@ -581,6 +596,77 @@ fun ProfileSettingsScreen(
                     }
                 }
             }
+
+            // Section: Logout & Account Security
+            item {
+                Card(
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.35f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFEF2F2)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "خروج از حساب کاربری",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                                Text(
+                                    text = "همگام‌سازی ابری اطلاعات و پاک‌سازی حافظه محلی دستگاه",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedButton(
+                            onClick = { showLogoutDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("btn_logout_profile"),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.7f)),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFFDC2626)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "خروج امن از حساب",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -654,6 +740,81 @@ fun ProfileSettingsScreen(
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showEditNameDialog = false }) {
                     Text("انصراف")
+                }
+            }
+        )
+    }
+
+    // Logout Confirmation & Sync Dialog
+    if (showLogoutDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { if (!isLoggingOut) showLogoutDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = null,
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "خروج از حساب کاربری 🚪",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                if (isLoggingOut) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = "در حال همگام‌سازی اطلاعات با سرور و خروج امن...",
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "آیا مطمئن هستید که می‌خواهید از حساب کاربری خود خارج شوید؟\n\nکلیه اطلاعات و تاریخچه مصرف آب شما ابتدا با سرور ابری همگام‌سازی می‌شود تا هیچ داده‌ای از بین نرود، و سپس داده‌های محلی دستگاه برای امنیت پاک خواهند شد.",
+                        fontSize = 13.sp,
+                        lineHeight = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                if (!isLoggingOut) {
+                    Button(
+                        onClick = {
+                            isLoggingOut = true
+                            viewModel.logout {
+                                isLoggingOut = false
+                                showLogoutDialog = false
+                                Toast.makeText(context, "با موفقیت خارج شدید و اطلاعات شما در سرور ذخیره شد ✓", Toast.LENGTH_SHORT).show()
+                                onNavigateToAuth()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                    ) {
+                        Text("همگام‌سازی و خروج", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            },
+            dismissButton = {
+                if (!isLoggingOut) {
+                    androidx.compose.material3.TextButton(onClick = { showLogoutDialog = false }) {
+                        Text("انصراف")
+                    }
                 }
             }
         )

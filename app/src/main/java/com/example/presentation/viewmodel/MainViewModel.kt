@@ -51,7 +51,8 @@ class MainViewModel(
     private val healthCompanionManager: HealthCompanionManager? = null,
     private val fcmTokenManager: FcmTokenManager? = null,
     private val supabaseClient: com.example.data.remote.supabase.SupabaseClient? = null,
-    private val gamificationRepository: com.example.domain.repository.GamificationRepository? = null
+    private val gamificationRepository: com.example.domain.repository.GamificationRepository? = null,
+    private val database: com.example.data.local.room.database.NooshDatabase? = null
 ) : ViewModel() {
 
     val dashboardState: StateFlow<DashboardState?> = getDashboardDataUseCase()
@@ -436,6 +437,150 @@ class MainViewModel(
         }
     }
 
+    fun signUpUser(
+        email: String,
+        name: String,
+        password: String,
+        username: String,
+        onResult: (isSuccess: Boolean, message: String) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val cleanEmail = email.trim()
+            val cleanUsername = username.trim().removePrefix("@")
+            val cleanName = name.trim().ifBlank { cleanUsername.ifBlank { cleanEmail.substringBefore("@") } }
+
+            // 1. Validate Uniqueness Locally
+            if (userRepository.isEmailRegistered(cleanEmail)) {
+                withContext(Dispatchers.Main) {
+                    onResult(false, "این ایمیل قبلاً در برنامه ثبت‌نام شده است. لطفاً وارد حساب خود شوید.")
+                }
+                return@launch
+            }
+
+            if (userRepository.isUsernameTaken(cleanUsername)) {
+                withContext(Dispatchers.Main) {
+                    onResult(false, "این نام کاربری قبلاً توسط کاربر دیگری انتخاب شده است. لطفاً شناسه دیگری برگزینید.")
+                }
+                return@launch
+            }
+
+            // 2. Register with Clerk API
+            val result = clerkAuthManager.signUpWithEmail(cleanEmail, cleanName, password, cleanUsername)
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is ClerkAuthResult.Success -> {
+                        viewModelScope.launch(Dispatchers.IO) {
+                            userRepository.saveRegisteredAccount(cleanName, cleanUsername, cleanEmail, password)
+                            val profile = userRepository.getUserProfile()
+                            val updated = profile.copy(
+                                name = result.user.firstName.ifBlank { cleanName },
+                                username = cleanUsername,
+                                email = result.user.email,
+                                clerkUserId = result.user.id
+                            )
+                            userRepository.updateProfile(updated)
+                            fcmTokenManager?.onUserLogin(updated.id)
+                            if (updated.reminderEnabled) {
+                                reminderScheduler.scheduleNextPendingReminder()
+                                try {
+                                    com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
+                                        com.example.NooshApplication.instance,
+                                        updated.reminderIntervalMinutes.coerceAtLeast(15)
+                                    )
+                                } catch (e: Throwable) {
+                                    Log.w("MainViewModel", "Periodic reminder scheduling skipped: ${e.message}")
+                                }
+                            }
+                        }
+                        onResult(true, "ثبت‌نام شما با موفقیت انجام شد! به نوش خوش آمدید ✓")
+                    }
+                    is ClerkAuthResult.NeedsVerification -> {
+                        viewModelScope.launch(Dispatchers.IO) {
+                            userRepository.saveRegisteredAccount(cleanName, cleanUsername, cleanEmail, password)
+                            val profile = userRepository.getUserProfile()
+                            val updated = profile.copy(
+                                name = cleanName,
+                                username = cleanUsername,
+                                email = cleanEmail,
+                                clerkUserId = result.signUpId
+                            )
+                            userRepository.updateProfile(updated)
+                            fcmTokenManager?.onUserLogin(updated.id)
+                        }
+                        onResult(true, "ثبت‌نام با موفقیت انجام شد ✓")
+                    }
+                    is ClerkAuthResult.Error -> {
+                        onResult(false, result.message)
+                    }
+                }
+            }
+        }
+    }
+
+    fun signInUser(
+        identifier: String,
+        password: String,
+        onResult: (isSuccess: Boolean, message: String) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val cleanIdentifier = identifier.trim()
+            var emailToUse = cleanIdentifier
+
+            // If user entered a username instead of email, look up the email from registered accounts
+            if (!cleanIdentifier.contains("@")) {
+                val account = database?.registeredAccountDao()?.findByUsername(cleanIdentifier.removePrefix("@"))
+                if (account != null) {
+                    emailToUse = account.email
+                }
+            }
+
+            val result = clerkAuthManager.signInWithEmail(emailToUse, password)
+            withContext(Dispatchers.Main) {
+                when (result) {
+                    is ClerkAuthResult.Success -> {
+                        viewModelScope.launch(Dispatchers.IO) {
+                            val profile = userRepository.getUserProfile()
+                            val registeredAcc = database?.registeredAccountDao()?.findByEmail(result.user.email)
+                            val updated = profile.copy(
+                                name = result.user.firstName.ifBlank { registeredAcc?.name ?: profile.name },
+                                username = registeredAcc?.username ?: profile.username,
+                                email = result.user.email,
+                                clerkUserId = result.user.id
+                            )
+                            userRepository.updateProfile(updated)
+                            fcmTokenManager?.onUserLogin(updated.id)
+                            // Reconcile remote server data to restore user history
+                            try {
+                                syncRepository.pullRemoteUpdates()
+                                syncRepository.processOutboxSync()
+                            } catch (e: Throwable) {
+                                Log.w("MainViewModel", "Post-login sync error: ${e.message}")
+                            }
+                            if (updated.reminderEnabled) {
+                                reminderScheduler.scheduleNextPendingReminder()
+                                try {
+                                    com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
+                                        com.example.NooshApplication.instance,
+                                        updated.reminderIntervalMinutes.coerceAtLeast(15)
+                                    )
+                                } catch (e: Throwable) {
+                                    Log.w("MainViewModel", "Periodic reminder scheduling skipped: ${e.message}")
+                                }
+                            }
+                        }
+                        onResult(true, "با موفقیت وارد شدید ✓")
+                    }
+                    is ClerkAuthResult.NeedsVerification -> {
+                        onResult(true, "ورود نیازمند تأیید هویت است.")
+                    }
+                    is ClerkAuthResult.Error -> {
+                        onResult(false, result.message)
+                    }
+                }
+            }
+        }
+    }
+
     fun signInWithEmail(
         email: String,
         name: String,
@@ -443,50 +588,10 @@ class MainViewModel(
         username: String? = null,
         onResult: ((isSuccess: Boolean, message: String) -> Unit)? = null
     ) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = clerkAuthManager.registerOrSignInWithClerk(email, name, password)
-            withContext(Dispatchers.Main) {
-                when (result) {
-                    is ClerkAuthResult.Success -> {
-                        val profile = userRepository.getUserProfile()
-                        val updated = profile.copy(
-                            name = result.user.firstName.ifBlank { name },
-                            username = username?.ifBlank { null } ?: profile.username,
-                            email = result.user.email,
-                            clerkUserId = result.user.id
-                        )
-                        userRepository.updateProfile(updated)
-                        fcmTokenManager?.onUserLogin(updated.id)
-                        if (updated.reminderEnabled) {
-                            reminderScheduler.scheduleNextPendingReminder()
-                            try {
-                                com.example.workers.WaterReminderWorkScheduler.schedulePeriodicReminders(
-                                    com.example.NooshApplication.instance,
-                                    updated.reminderIntervalMinutes.coerceAtLeast(15)
-                                )
-                            } catch (e: Throwable) {
-                                Log.w("MainViewModel", "Periodic reminder scheduling skipped: ${e.message}")
-                            }
-                        }
-                        onResult?.invoke(true, "خوش آمدید! احراز هویت با موفقیت انجام شد ✓")
-                    }
-                    is ClerkAuthResult.NeedsVerification -> {
-                        val profile = userRepository.getUserProfile()
-                        val updated = profile.copy(
-                            name = name,
-                            username = username?.ifBlank { null } ?: profile.username,
-                            email = email,
-                            clerkUserId = result.signUpId
-                        )
-                        userRepository.updateProfile(updated)
-                        fcmTokenManager?.onUserLogin(updated.id)
-                        onResult?.invoke(true, "ثبت‌نام با موفقیت انجام شد و کد تأیید ارسال گردید ✓")
-                    }
-                    is ClerkAuthResult.Error -> {
-                        onResult?.invoke(false, result.message)
-                    }
-                }
-            }
+        if (!password.isNullOrBlank()) {
+            signInUser(email, password) { ok, msg -> onResult?.invoke(ok, msg) }
+        } else {
+            signUpUser(email, name, "Noosh#123456", username ?: "") { ok, msg -> onResult?.invoke(ok, msg) }
         }
     }
 
@@ -498,16 +603,63 @@ class MainViewModel(
         }
     }
 
-    fun signOut() {
-        _onboardingCompletedInSession.value = false
-        clerkAuthManager.signOut()
-        fcmTokenManager?.onUserLogout()
-        reminderScheduler.cancelAllAlarms()
-        try {
-            com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(com.example.NooshApplication.instance)
-        } catch (e: Throwable) {
-            Log.w("MainViewModel", "Error canceling reminders on sign out: ${e.message}")
+    fun logout(onComplete: () -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Sync pending local data to server before logging out so nothing is lost
+                syncRepository.processOutboxSync()
+                syncRepository.syncPendingIntakes()
+                val profile = userRepository.getUserProfile()
+                val todayWater = waterRepository.getTodayTotalMl()
+                val streak = waterRepository.calculateStreak().currentStreak
+                supabaseClient?.syncHealthEvent(
+                    com.example.data.remote.supabase.SupabaseHealthSyncEvent(
+                        userId = profile.id,
+                        dailyIntakeMl = todayWater,
+                        dailyGoalMl = profile.dailyWaterGoalMl,
+                        streakDays = streak,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Pre-logout server sync failed: ${e.message}")
+            }
+
+            // 2. Wipe client-stored database tables
+            try {
+                database?.clearAllTables()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Database clearAllTables failed: ${e.message}")
+            }
+
+            // 3. Clear auth and notifications
+            clerkAuthManager.signOut()
+            fcmTokenManager?.onUserLogout()
+            reminderScheduler.cancelAllAlarms()
+            try {
+                com.example.workers.WaterReminderWorkScheduler.cancelAllReminders(com.example.NooshApplication.instance)
+            } catch (e: Throwable) {
+                Log.w("MainViewModel", "Error canceling reminders on logout: ${e.message}")
+            }
+
+            // 4. Reset in-memory session flags
+            _onboardingCompletedInSession.value = false
+
+            // 5. Initialize clean fresh default profile so app doesn't crash on null profile
+            try {
+                userRepository.initializeDefaultProfileIfNeeded()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to init default profile: ${e.message}")
+            }
+
+            withContext(Dispatchers.Main) {
+                onComplete()
+            }
         }
+    }
+
+    fun signOut() {
+        logout {}
     }
 
     fun createCompanionRoom(onCodeGenerated: (String) -> Unit) {
@@ -662,7 +814,8 @@ class MainViewModelFactory(
     private val healthCompanionManager: HealthCompanionManager? = null,
     private val fcmTokenManager: FcmTokenManager? = null,
     private val supabaseClient: com.example.data.remote.supabase.SupabaseClient? = null,
-    private val gamificationRepository: com.example.domain.repository.GamificationRepository? = null
+    private val gamificationRepository: com.example.domain.repository.GamificationRepository? = null,
+    private val database: com.example.data.local.room.database.NooshDatabase? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -679,7 +832,8 @@ class MainViewModelFactory(
                 healthCompanionManager = healthCompanionManager,
                 fcmTokenManager = fcmTokenManager,
                 supabaseClient = supabaseClient,
-                gamificationRepository = gamificationRepository
+                gamificationRepository = gamificationRepository,
+                database = database
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

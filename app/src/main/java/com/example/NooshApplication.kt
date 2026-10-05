@@ -46,7 +46,8 @@ class NooshApplication : Application() {
 
     val userRepository: UserRepository by lazy {
         UserRepositoryImpl(
-            userProfileDao = database.userProfileDao()
+            userProfileDao = database.userProfileDao(),
+            registeredAccountDao = database.registeredAccountDao()
         )
     }
 

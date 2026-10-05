@@ -3,7 +3,13 @@ package com.example.presentation.screens
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +47,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import com.example.presentation.theme.SuccessGreen
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -64,8 +70,13 @@ import androidx.compose.ui.unit.sp
 import com.example.data.remote.clerk.AuthState
 import com.example.presentation.components.NooshCharacterView
 import com.example.presentation.theme.NooshPrimary
-import com.example.presentation.theme.NooshSubtleBlue
+import com.example.presentation.theme.SuccessGreen
 import com.example.presentation.viewmodel.MainViewModel
+
+enum class AuthMode {
+    LOGIN,
+    REGISTER
+}
 
 @Composable
 fun AuthScreen(
@@ -78,16 +89,27 @@ fun AuthScreen(
     val activity = context as? Activity
     val authState by viewModel.authState.collectAsState()
 
-    // When the user is NOT authenticated, pressing back MUST exit the application
+    // When the user is NOT authenticated, pressing back exits the app
     BackHandler(enabled = authState !is AuthState.Authenticated) {
         activity?.finish()
     }
 
-    var nameInput by remember { mutableStateOf("") }
-    var usernameInput by remember { mutableStateOf("") }
-    var emailInput by remember { mutableStateOf("") }
-    var passwordInput by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var authMode by remember { mutableStateOf(AuthMode.LOGIN) }
+
+    // Login Form State
+    var loginIdentifierInput by remember { mutableStateOf("") }
+    var loginPasswordInput by remember { mutableStateOf("") }
+    var loginPasswordVisible by remember { mutableStateOf(false) }
+
+    // Register Form State
+    var registerNameInput by remember { mutableStateOf("") }
+    var registerUsernameInput by remember { mutableStateOf("") }
+    var registerEmailInput by remember { mutableStateOf("") }
+    var registerPasswordInput by remember { mutableStateOf("") }
+    var registerConfirmPasswordInput by remember { mutableStateOf("") }
+    var registerPasswordVisible by remember { mutableStateOf(false) }
+    var registerConfirmPasswordVisible by remember { mutableStateOf(false) }
+
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
@@ -119,18 +141,16 @@ fun AuthScreen(
                     )
                 }
             } else {
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        NooshCharacterView(size = 80.dp)
 
-        NooshCharacterView(size = 90.dp)
-
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         Text(
-            text = "ورود و ثبت‌نام در نوش",
+            text = if (authMode == AuthMode.LOGIN) "ورود به حساب کاربری" else "ثبت‌نام در نوش",
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -138,11 +158,14 @@ fun AuthScreen(
         )
 
         Text(
-            text = "با ورود به حساب کاربری، اطلاعات و پیشرفت مصرف آب شما همگام‌سازی و حفظ می‌شود",
+            text = if (authMode == AuthMode.LOGIN)
+                "برای همگام‌سازی و دسترسی به سوابق مصرف آب خود وارد شوید"
+            else
+                "اطلاعات خود را وارد کنید تا حساب کاربری شما ساخته و فعال شود",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp, bottom = 20.dp)
+            modifier = Modifier.padding(top = 6.dp, bottom = 18.dp)
         )
 
         when (val state = authState) {
@@ -151,7 +174,7 @@ fun AuthScreen(
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -191,14 +214,6 @@ fun AuthScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = "شناسه کاربر: ${state.user.id}",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                        )
-
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
@@ -226,8 +241,9 @@ fun AuthScreen(
 
                         OutlinedButton(
                             onClick = {
-                                viewModel.signOut()
-                                Toast.makeText(context, "از حساب کاربری خارج شدید", Toast.LENGTH_SHORT).show()
+                                viewModel.logout {
+                                    Toast.makeText(context, "از حساب کاربری خارج شدید", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -242,39 +258,83 @@ fun AuthScreen(
             }
 
             else -> {
-                // User is unauthenticated: display authentication form
+                // User is unauthenticated: display separate Login / Register forms
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(22.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(22.dp)
+                            .padding(20.dp)
                     ) {
-                        Text(
-                            text = "مشخصات حساب کاربری",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
+                        // Top Switch Tabs: Login vs Register
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (authMode == AuthMode.LOGIN) MaterialTheme.colorScheme.surface else Color.Transparent)
+                                    .clickable {
+                                        authMode = AuthMode.LOGIN
+                                        errorMessage = null
+                                    }
+                                    .padding(vertical = 10.dp)
+                                    .testTag("tab_auth_login"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "ورود به حساب",
+                                    fontSize = 14.sp,
+                                    fontWeight = if (authMode == AuthMode.LOGIN) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (authMode == AuthMode.LOGIN) NooshPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
 
-                        // Error Banner if authentication fails
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (authMode == AuthMode.REGISTER) MaterialTheme.colorScheme.surface else Color.Transparent)
+                                    .clickable {
+                                        authMode = AuthMode.REGISTER
+                                        errorMessage = null
+                                    }
+                                    .padding(vertical = 10.dp)
+                                    .testTag("tab_auth_register"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "ثبت‌نام کاربر جدید",
+                                    fontSize = 14.sp,
+                                    fontWeight = if (authMode == AuthMode.REGISTER) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (authMode == AuthMode.REGISTER) NooshPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Error Banner
                         if (!errorMessage.isNullOrBlank()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFFEF2F2).copy(alpha = 0.5f))
+                                    .background(Color(0xFFFEF2F2))
                                     .padding(12.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.ErrorOutline,
                                         contentDescription = null,
@@ -293,187 +353,426 @@ fun AuthScreen(
                             Spacer(modifier = Modifier.height(14.dp))
                         }
 
-                        OutlinedTextField(
-                            value = nameInput,
-                            onValueChange = {
-                                nameInput = it
-                                errorMessage = null
-                            },
-                            label = { Text("نام و نام خانوادگی") },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("input_auth_name"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            ),
-                            singleLine = true
-                        )
+                        AnimatedContent(
+                            targetState = authMode,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "auth_form_anim"
+                        ) { mode ->
+                            when (mode) {
+                                AuthMode.LOGIN -> {
+                                    // LOGIN FORM
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        OutlinedTextField(
+                                            value = loginIdentifierInput,
+                                            onValueChange = {
+                                                loginIdentifierInput = it
+                                                errorMessage = null
+                                            },
+                                            label = { Text("ایمیل یا شناسه کاربری") },
+                                            placeholder = { Text("example@mail.com یا noosh_user") },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Person,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("input_login_identifier"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                            ),
+                                            singleLine = true
+                                        )
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                                        Spacer(modifier = Modifier.height(14.dp))
 
-                        OutlinedTextField(
-                            value = usernameInput,
-                            onValueChange = {
-                                usernameInput = it
-                                errorMessage = null
-                            },
-                            label = { Text("شناسه کاربری (اختیاری)") },
-                            placeholder = { Text("مثال: noosh_user") },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Badge,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("input_auth_username"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            ),
-                            singleLine = true
-                        )
+                                        OutlinedTextField(
+                                            value = loginPasswordInput,
+                                            onValueChange = {
+                                                loginPasswordInput = it
+                                                errorMessage = null
+                                            },
+                                            label = { Text("رمز عبور") },
+                                            visualTransformation = if (loginPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Lock,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                val image = if (loginPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                                                val desc = if (loginPasswordVisible) "مخفی کردن رمز" else "نمایش رمز"
+                                                IconButton(onClick = { loginPasswordVisible = !loginPasswordVisible }) {
+                                                    Icon(imageVector = image, contentDescription = desc, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("input_login_password"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                            ),
+                                            singleLine = true
+                                        )
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                                        Spacer(modifier = Modifier.height(20.dp))
 
-                        OutlinedTextField(
-                            value = emailInput,
-                            onValueChange = {
-                                emailInput = it
-                                errorMessage = null
-                            },
-                            label = { Text("آدرس ایمیل") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Email,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("input_auth_email"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            ),
-                            singleLine = true
-                        )
+                                        Button(
+                                            onClick = {
+                                                val identifier = loginIdentifierInput.trim()
+                                                val pwd = loginPasswordInput.trim()
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                                                if (identifier.isBlank()) {
+                                                    errorMessage = "لطفاً ایمیل یا شناسه کاربری خود را وارد کنید."
+                                                    return@Button
+                                                }
+                                                if (pwd.isBlank()) {
+                                                    errorMessage = "لطفاً رمز عبور را وارد کنید."
+                                                    return@Button
+                                                }
 
-                        OutlinedTextField(
-                            value = passwordInput,
-                            onValueChange = {
-                                passwordInput = it
-                                errorMessage = null
-                            },
-                            label = { Text("رمز عبور") },
-                            placeholder = { Text("حداقل ۸ الی ۱۵ کاراکتر") },
-                            supportingText = {
-                                Text(
-                                    text = "طول رمز عبور حداقل ۸ الی ۱۵ کاراکتر (بسته به تنظیمات کلارک)",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                )
-                            },
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Lock,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            trailingIcon = {
-                                val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                                val desc = if (passwordVisible) "مخفی کردن رمز" else "نمایش رمز"
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(imageVector = image, contentDescription = desc, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("input_auth_password"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            ),
-                            singleLine = true
-                        )
+                                                errorMessage = null
+                                                isSubmitting = true
+                                                viewModel.signInUser(identifier, pwd) { isSuccess, message ->
+                                                    isSubmitting = false
+                                                    if (isSuccess) {
+                                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                        onAuthSuccess()
+                                                    } else {
+                                                        errorMessage = message
+                                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                                    }
+                                                }
+                                            },
+                                            enabled = !isSubmitting,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(50.dp)
+                                                .testTag("btn_submit_login"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary)
+                                        ) {
+                                            if (isSubmitting) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    color = Color.White,
+                                                    strokeWidth = 2.dp
+                                                )
+                                            } else {
+                                                Text("ورود به حساب کاربری", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
 
-                        Spacer(modifier = Modifier.height(22.dp))
+                                        Spacer(modifier = Modifier.height(14.dp))
 
-                        Button(
-                            onClick = {
-                                val email = emailInput.trim()
-                                val name = nameInput.trim()
-                                val pwd = passwordInput.trim()
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "هنوز حساب کاربری ندارید؟",
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    authMode = AuthMode.REGISTER
+                                                    errorMessage = null
+                                                }
+                                            ) {
+                                                Text("ثبت‌نام کنید", color = NooshPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
 
-                                if (email.isBlank()) {
-                                    errorMessage = "لطفاً آدرس ایمیل خود را وارد کنید."
-                                    return@Button
-                                }
-                                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                                    errorMessage = "فرمت آدرس ایمیل وارد شده معتبر نیست."
-                                    return@Button
-                                }
-                                if (pwd.isNotBlank() && pwd.length < 8) {
-                                    errorMessage = "رمز عبور باید حداقل ۸ کاراکتر باشد."
-                                    return@Button
-                                }
+                                        Spacer(modifier = Modifier.height(6.dp))
 
-                                errorMessage = null
-                                isSubmitting = true
-                                val chosenName = name.ifBlank { usernameInput.trim().ifBlank { email.substringBefore("@") } }
-                                viewModel.signInWithEmail(
-                                    email = email,
-                                    name = chosenName,
-                                    password = pwd.ifBlank { null },
-                                    username = usernameInput.trim().ifBlank { null }
-                                ) { isSuccess, message ->
-                                    isSubmitting = false
-                                    if (isSuccess) {
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                        onAuthSuccess()
-                                    } else {
-                                        errorMessage = message
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                        OutlinedButton(
+                                            onClick = {
+                                                viewModel.continueAsGuest()
+                                                onAuthSuccess()
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(44.dp)
+                                                .testTag("btn_auth_guest"),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text("ادامه به عنوان کاربر مهمان", fontSize = 13.sp)
+                                        }
                                     }
                                 }
-                            },
-                            enabled = !isSubmitting,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                                .testTag("btn_submit_auth"),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary)
-                        ) {
-                            if (isSubmitting) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text("ورود به حساب کاربری", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+
+                                AuthMode.REGISTER -> {
+                                    // REGISTER FORM
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        OutlinedTextField(
+                                            value = registerNameInput,
+                                            onValueChange = {
+                                                registerNameInput = it
+                                                errorMessage = null
+                                            },
+                                            label = { Text("نام و نام خانوادگی") },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Person,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("input_register_name"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                            ),
+                                            singleLine = true
+                                        )
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        OutlinedTextField(
+                                            value = registerUsernameInput,
+                                            onValueChange = {
+                                                registerUsernameInput = it.lowercase().trim()
+                                                errorMessage = null
+                                            },
+                                            label = { Text("نام کاربری (یکتا)") },
+                                            placeholder = { Text("مثال: noosh_user") },
+                                            prefix = { Text("@") },
+                                            supportingText = {
+                                                Text("شامل حروف انگلیسی، ارقام و خط زیر (یکتا)", fontSize = 11.sp)
+                                            },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Badge,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("input_register_username"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                            ),
+                                            singleLine = true
+                                        )
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        OutlinedTextField(
+                                            value = registerEmailInput,
+                                            onValueChange = {
+                                                registerEmailInput = it.trim()
+                                                errorMessage = null
+                                            },
+                                            label = { Text("آدرس ایمیل (یکتا)") },
+                                            placeholder = { Text("mail@example.com") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Email,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("input_register_email"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                            ),
+                                            singleLine = true
+                                        )
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        OutlinedTextField(
+                                            value = registerPasswordInput,
+                                            onValueChange = {
+                                                registerPasswordInput = it
+                                                errorMessage = null
+                                            },
+                                            label = { Text("رمز عبور") },
+                                            placeholder = { Text("حداقل ۸ کاراکتر") },
+                                            visualTransformation = if (registerPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Lock,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                val image = if (registerPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                                                val desc = if (registerPasswordVisible) "مخفی کردن رمز" else "نمایش رمز"
+                                                IconButton(onClick = { registerPasswordVisible = !registerPasswordVisible }) {
+                                                    Icon(imageVector = image, contentDescription = desc, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("input_register_password"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                            ),
+                                            singleLine = true
+                                        )
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        OutlinedTextField(
+                                            value = registerConfirmPasswordInput,
+                                            onValueChange = {
+                                                registerConfirmPasswordInput = it
+                                                errorMessage = null
+                                            },
+                                            label = { Text("تکرار رمز عبور") },
+                                            visualTransformation = if (registerConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Default.Lock,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                val image = if (registerConfirmPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                                                val desc = if (registerConfirmPasswordVisible) "مخفی کردن رمز" else "نمایش رمز"
+                                                IconButton(onClick = { registerConfirmPasswordVisible = !registerConfirmPasswordVisible }) {
+                                                    Icon(imageVector = image, contentDescription = desc, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("input_register_confirm_password"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                            ),
+                                            singleLine = true
+                                        )
+
+                                        Spacer(modifier = Modifier.height(20.dp))
+
+                                        Button(
+                                            onClick = {
+                                                val name = registerNameInput.trim()
+                                                val username = registerUsernameInput.trim().removePrefix("@")
+                                                val email = registerEmailInput.trim()
+                                                val pwd = registerPasswordInput.trim()
+                                                val confirmPwd = registerConfirmPasswordInput.trim()
+
+                                                if (name.isBlank()) {
+                                                    errorMessage = "لطفاً نام و نام خانوادگی خود را وارد کنید."
+                                                    return@Button
+                                                }
+                                                if (username.isBlank()) {
+                                                    errorMessage = "لطفاً یک شناسه کاربری (نام کاربری) وارد کنید."
+                                                    return@Button
+                                                }
+                                                if (!Regex("^[a-zA-Z0-9_]{3,30}$").matches(username)) {
+                                                    errorMessage = "نام کاربری باید بین ۳ تا ۳۰ کاراکتر و تنها شامل حروف انگلیسی، اعداد یا خط زیر باشد."
+                                                    return@Button
+                                                }
+                                                if (email.isBlank()) {
+                                                    errorMessage = "لطفاً آدرس ایمیل خود را وارد کنید."
+                                                    return@Button
+                                                }
+                                                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                                                    errorMessage = "فرمت آدرس ایمیل وارد شده معتبر نیست."
+                                                    return@Button
+                                                }
+                                                if (pwd.length < 8) {
+                                                    errorMessage = "رمز عبور باید حداقل ۸ کاراکتر باشد."
+                                                    return@Button
+                                                }
+                                                if (pwd != confirmPwd) {
+                                                    errorMessage = "رمز عبور و تکرار آن با یکدیگر مطابقت ندارند."
+                                                    return@Button
+                                                }
+
+                                                errorMessage = null
+                                                isSubmitting = true
+                                                viewModel.signUpUser(
+                                                    email = email,
+                                                    name = name,
+                                                    password = pwd,
+                                                    username = username
+                                                ) { isSuccess, message ->
+                                                    isSubmitting = false
+                                                    if (isSuccess) {
+                                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                                        onAuthSuccess()
+                                                    } else {
+                                                        errorMessage = message
+                                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                                    }
+                                                }
+                                            },
+                                            enabled = !isSubmitting,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(50.dp)
+                                                .testTag("btn_submit_register"),
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = NooshPrimary)
+                                        ) {
+                                            if (isSubmitting) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    color = Color.White,
+                                                    strokeWidth = 2.dp
+                                                )
+                                            } else {
+                                                Text("ثبت‌نام و ایجاد حساب", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(14.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "قبلاً حساب کاربری ساخته‌اید؟",
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    authMode = AuthMode.LOGIN
+                                                    errorMessage = null
+                                                }
+                                            ) {
+                                                Text("اینجا وارد شوید", color = NooshPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

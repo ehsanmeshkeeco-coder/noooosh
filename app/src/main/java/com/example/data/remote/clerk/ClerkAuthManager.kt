@@ -93,7 +93,17 @@ class ClerkAuthManager(
     suspend fun registerOrSignInWithClerk(
         email: String,
         name: String,
-        password: String? = null
+        password: String? = null,
+        username: String? = null
+    ): ClerkAuthResult {
+        return signUpWithEmail(email, name, password, username)
+    }
+
+    suspend fun signUpWithEmail(
+        email: String,
+        name: String,
+        password: String? = null,
+        username: String? = null
     ): ClerkAuthResult {
         val cleanEmail = email.trim()
         val cleanName = name.trim().ifBlank { cleanEmail.substringBefore("@") }
@@ -103,7 +113,7 @@ class ClerkAuthManager(
             return ClerkAuthResult.Error("تنظیمات ارتباط با سرور احراز هویت یافت نشد.")
         }
 
-        val result = apiClient.signUpWithEmail(cleanEmail, cleanName, password)
+        val result = apiClient.signUpWithEmail(cleanEmail, cleanName, password, username)
         when (result) {
             is ClerkAuthResult.Success -> {
                 saveUser(result.user)

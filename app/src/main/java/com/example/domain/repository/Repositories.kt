@@ -39,6 +39,10 @@ interface UserRepository {
         userId: String = "default_user"
     )
     suspend fun updateThemeMode(themeMode: String, userId: String = "default_user")
+    suspend fun isEmailRegistered(email: String): Boolean
+    suspend fun isUsernameTaken(username: String): Boolean
+    suspend fun saveRegisteredAccount(name: String, username: String, email: String, passwordHash: String = "")
+    suspend fun initializeDefaultProfileIfNeeded(userId: String = "default_user")
 }
 
 interface ReminderRepository {

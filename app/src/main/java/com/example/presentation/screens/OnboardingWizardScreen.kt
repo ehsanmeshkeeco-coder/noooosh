@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Female
 import androidx.compose.material.icons.filled.Height
@@ -322,43 +323,39 @@ private fun StepOneNameAndPhoto(
     onPickPhoto: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(horizontal = 20.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            NooshCharacterView(size = 72.dp)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             Text(
                 text = "به «نوش» خوش آمدید! 💧",
-                fontSize = 20.sp,
+                fontSize = 19.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
-                text = "برای شروع بیایید یکدیگر را بهتر بشناسیم. لطفاً نام و تصویر دلخواهتان را مشخص کنید.",
-                fontSize = 13.sp,
+                text = "برای شروع، نام و تصویر دلخواهتان را مشخص کنید",
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp, bottom = 20.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
             )
 
-            // Avatar circle with photo picker
+            // Compact Avatar Circle with Photo Picker
             Box(
                 modifier = Modifier
-                    .size(110.dp)
+                    .size(88.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                     .clickable { onPickPhoto() },
                 contentAlignment = Alignment.Center
             ) {
@@ -366,36 +363,60 @@ private fun StepOneNameAndPhoto(
                     AsyncImage(
                         model = imageUri,
                         contentDescription = "عکس پروفایل انتخاب شده",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else if (!existingImageUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = existingImageUrl,
                         contentDescription = "عکس پروفایل",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.AddAPhoto,
                             contentDescription = "انتخاب تصویر پروفایل",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(28.dp)
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "افزودن عکس",
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
+
+                // Camera badge at bottom-end
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = "انتخاب عکس",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             OutlinedTextField(
                 value = name,

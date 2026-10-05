@@ -96,7 +96,8 @@ class MainActivity : ComponentActivity() {
             healthCompanionManager = app.healthCompanionManager,
             fcmTokenManager = app.fcmTokenManager,
             supabaseClient = app.supabaseClient,
-            gamificationRepository = app.gamificationRepository
+            gamificationRepository = app.gamificationRepository,
+            database = app.database
         )
     }
 

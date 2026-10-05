@@ -49,7 +49,8 @@ class ClerkApiClient(
     suspend fun signUpWithEmail(
         email: String,
         firstName: String,
-        password: String? = null
+        password: String? = null,
+        customUsername: String? = null
     ): ClerkAuthResult = withContext(Dispatchers.IO) {
         if (!isConfigured) {
             return@withContext ClerkAuthResult.Error("تنظیمات احراز هویت سرور در دسترس نیست.")
@@ -58,7 +59,8 @@ class ClerkApiClient(
         try {
             val cleanEmail = email.trim()
             val emailPrefix = cleanEmail.substringBefore("@").replace(Regex("[^a-zA-Z0-9_]"), "")
-            val username = "u_${emailPrefix}_${System.currentTimeMillis() % 100000}"
+            val username = customUsername?.trim()?.removePrefix("@")?.takeIf { it.isNotBlank() }
+                ?: "u_${emailPrefix}_${System.currentTimeMillis() % 100000}"
             val pwd = if (password.isNullOrBlank()) {
                 "Noosh#App_${cleanEmail.hashCode().toUInt()}!X${System.currentTimeMillis() % 1000}"
             } else {
@@ -119,9 +121,12 @@ class ClerkApiClient(
                 val firstError = errors?.optJSONObject(0)
                 val errorCode = firstError?.optString("code") ?: ""
 
-                // If identifier already exists, automatically attempt sign-in
+                // Reject duplicate email on sign-up as requested by user
                 if (errorCode == "form_identifier_exists") {
-                    return@withContext signInWithEmail(cleanEmail, pwd, firstName)
+                    return@withContext ClerkAuthResult.Error("این ایمیل قبلاً در سیستم ثبت شده است. لطفاً وارد حساب خود شوید یا از ایمیل دیگری استفاده فرمایید.")
+                }
+                if (errorCode == "form_username_exists") {
+                    return@withContext ClerkAuthResult.Error("این نام کاربری قبلاً توسط کاربر دیگری ثبت شده است. لطفاً شناسه دیگری انتخاب نمایید.")
                 }
 
                 val rawMsg = firstError?.optString("long_message").takeIf { !it.isNullOrBlank() }
